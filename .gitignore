@@ -1,5 +1,5 @@
 # Created by .ignore support plugin (hsz.mobi)
 notebooks/
-.idea/
+*.idea/
 *__pycache__/
 pyMultiCal/data/
