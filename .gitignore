@@ -1,0 +1,4 @@
+# Created by .ignore support plugin (hsz.mobi)
+notebooks/
+.idea/workspace.xml
+*__pycache__/
