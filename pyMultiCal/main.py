@@ -1,8 +1,5 @@
 import sys
 
-import matplotlib
-matplotlib.use("Qt5Agg")
-
 import sip
 from PyQt5 import QtWidgets
 

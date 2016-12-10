@@ -1,6 +1,6 @@
 import sys
-from .qt import custom_excepthook
-sys.excepthook = custom_excepthook
+from .qt import pyqt5_excepthook
+sys.excepthook = pyqt5_excepthook
 
 try:
     import matplotlib

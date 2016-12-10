@@ -1,10 +1,6 @@
-import visa
-import skrf.vi.vna_pyvisa
+from . import base_analyzer
 
-resource_manager = visa.ResourceManager()
-
-
-class PNA(skrf.vi.vna_pyvisa.PNA):
+class PNA(base_analyzer.PNA):
     DEFAULT_VISA_ADDRESS = "GPIB0::16::INSTR"
 
     def measure_twoport_ntwk(self, ports=(1, 2), sweep=True):

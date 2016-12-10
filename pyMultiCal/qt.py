@@ -9,13 +9,14 @@ from PyQt5 import QtCore, QtWidgets
 from . import cfg
 
 
-def custom_excepthook(type, value, tback):
+def pyqt5_excepthook(type, value, tback):
     """overrides the default exception hook so that PyQt5 will print the error to the command line
     rather than just exiting with code 1 and no other explanation"""
     # log the exception here
 
     # then call the default handler
     sys.__excepthook__(type, value, tback)
+sys.excepthook = pyqt5_excepthook
 
 
 def instantiate_app(sys_argv=[]):
@@ -27,27 +28,21 @@ def instantiate_app(sys_argv=[]):
 
 class TextWarning(QtWidgets.QDialog):
     def __init__(self, text, parent=None):
-        self.setObjectName("Dialog")
+        super(TextWarning, self).__init__(parent)
         self.setWindowTitle("Warning")
-        self.resize(400, 300)
         self.gridLayout = QtWidgets.QGridLayout(self)
-        self.gridLayout.setObjectName("gridLayout")
         self.verticalLayout = QtWidgets.QVBoxLayout()
-        self.verticalLayout.setObjectName("verticalLayout")
         self.textBrowser = QtWidgets.QTextBrowser(self)
-        self.textBrowser.setObjectName("textBrowser")
         self.verticalLayout.addWidget(self.textBrowser)
 
         self.buttonBox = QtWidgets.QDialogButtonBox(self)
         self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
         self.buttonBox.setStandardButtons(QtWidgets.QDialogButtonBox.Cancel|QtWidgets.QDialogButtonBox.Ok)
-        self.buttonBox.setObjectName("buttonBox")
         self.verticalLayout.addWidget(self.buttonBox)
         self.gridLayout.addLayout(self.verticalLayout, 0, 0, 1, 1)
 
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
-        QtCore.QMetaObject.connectSlotsByName(TextWarning)
 
         if type(text) in (list, tuple):
             text = "\n".join(text)
@@ -106,5 +101,5 @@ def getDirName_Global(caption=None, start_path=None, **kwargs):
     dirname = str(QtWidgets.QFileDialog.getExistingDirectory(None, caption, start_path, **kwargs))
     if dirname in ("", None):
         return ""
-    cfg.last_path = os.path.dirname(dirname)
+    cfg.last_path = dirname
     return dirname

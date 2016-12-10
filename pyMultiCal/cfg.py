@@ -1,7 +1,6 @@
 import os
 
 # last_path = os.path.expanduser("~")
-# last_path += "/Documents/Data/MuEps measurements/"
 last_path = "C:/Coding/Python/pyMultiCal/pyMultiCal/data"
 last_path = os.path.normpath(last_path)
 
