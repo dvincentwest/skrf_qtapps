@@ -4,19 +4,21 @@ import os
 import sys
 import traceback
 
-from PyQt5 import QtCore, QtWidgets
+from qtpy import QtCore, QtWidgets
 
 from . import cfg
 
 
-def pyqt5_excepthook(type, value, tback):
-    """overrides the default exception hook so that PyQt5 will print the error to the command line
+def _excepthook(type, value, tback):
+    """overrides the default exception hook so that errors will print the error to the command line
     rather than just exiting with code 1 and no other explanation"""
     # log the exception here
 
     # then call the default handler
-    sys.__excepthook__(type, value, tback)
-sys.excepthook = pyqt5_excepthook
+    error = "\n".join(traceback.format_exception(type, value, tback))
+    QtWidgets.QMessageBox.warning(None, "Python Exception", error, QtWidgets.QMessageBox.Ok)
+    # sys.__excepthook__(type, value, tback)
+sys.excepthook = _excepthook
 
 
 def instantiate_app(sys_argv=[]):
@@ -50,13 +52,10 @@ class TextWarning(QtWidgets.QDialog):
 
 
 def error_popup(error):
-    if type(error) is str:
-        warning = TextWarning(error)
-    else:
+    if not type(error) is str:
         etype, value, tb = sys.exc_info()
-        warning = TextWarning(traceback.format_exception(etype, value, tb))
-
-    warning.exec_()
+        error = "\n".join(traceback.format_exception(etype, value, tb))
+    QtWidgets.QMessageBox.warning(None, "Python Exception", error, QtWidgets.QMessageBox.Ok)
 
 
 def warnMissingFeature():
@@ -103,3 +102,8 @@ def getDirName_Global(caption=None, start_path=None, **kwargs):
         return ""
     cfg.last_path = dirname
     return dirname
+
+
+if __name__ == "main":
+    # run some tests
+    pass

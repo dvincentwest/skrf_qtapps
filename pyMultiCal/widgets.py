@@ -5,7 +5,10 @@ import re
 from PyQt5 import QtCore, QtWidgets
 import pyqtgraph as pg
 import skrf
+from qtpy import QtWidgets, QtCore
+from skrf import Network, four_oneports_2_twoport
 
+from pyMultiCal import qt
 from . import qt
 
 lime_green = "#00FF00"
@@ -60,7 +63,7 @@ def save_multiple_networks(ntwk_list):
             ntwk.write_touchstone(fname)
 
 
-@QtCore.pyqtSlot(object, str)
+@QtCore.Slot(object, str)
 def save_NetworkListItem(ntwk_list_item, save_which):
     """
     :type ntwk_list_item: NetworkListItem
@@ -175,8 +178,8 @@ class NetworkListItem(QtWidgets.QListWidgetItem):
 
 class NetworkListWidget(QtWidgets.QListWidget):
 
-    item_removed = QtCore.pyqtSignal()
-    save_single_requested = QtCore.pyqtSignal(object, str)
+    item_removed = QtCore.Signal()
+    save_single_requested = QtCore.Signal(object, str)
 
     def __init__(self, parent=None):
         super(NetworkListWidget, self).__init__(parent)
@@ -399,7 +402,7 @@ class NetworkPlotWidget(QtWidgets.QWidget):
 
         for i in range(ntwk.s.shape[2]):
             for j in range(ntwk.s.shape[1]):
-                c = colors.__next__()
+                c = next(colors)
                 label = "S{:d}{:d}".format(j + 1, i + 1)
 
                 s_units = self.comboBox_unitsSelector.currentText()
@@ -420,7 +423,7 @@ class NetworkPlotWidget(QtWidgets.QWidget):
         for ntwk in self.ntwk_list:
             for i in range(ntwk.s.shape[2]):
                 for j in range(ntwk.s.shape[1]):
-                    c = colors.__next__()
+                    c = next(colors)
 
                     label = ntwk.name
                     if ntwk.s.shape[1] > 1:
@@ -431,3 +434,235 @@ class NetworkPlotWidget(QtWidgets.QWidget):
                     s = getattr(ntwk, self.S_VALS[s_units])[:, j, i]
                     self.plot.plot(ntwk.f, s, pen=pg.mkPen(c), name=label)
                     self.plot.setLabel("left", s_units)
+
+
+class SwitchTermsDialog(QtWidgets.QDialog):
+    def __init__(self, analyzer=None, parent=None):
+        super(SwitchTermsDialog, self).__init__(parent)
+
+        self.setWindowTitle("Measure Switch Terms")
+
+        self.verticalLayout = QtWidgets.QVBoxLayout(self)
+
+        self.btn_measureSwitch = QtWidgets.QPushButton("Measure Switch Terms")
+        self.label_measureSwitch = QtWidgets.QLabel("Not Measured")
+        self.btn_loadForwardSwitch = QtWidgets.QPushButton("Load Forward Switch Terms")
+        self.label_loadForwardSwitch = QtWidgets.QLabel("Not Measured")
+        self.btn_loadReverseSwitch = QtWidgets.QPushButton("Load Reverse Switch Terms")
+        self.label_loadReverseSwitch = QtWidgets.QLabel("Not Measured")
+
+        self.gridLayout = QtWidgets.QGridLayout()
+        self.gridLayout.addWidget(self.btn_measureSwitch, 0, 0)
+        self.gridLayout.addWidget(self.label_measureSwitch, 0, 1)
+        self.gridLayout.addWidget(self.btn_loadForwardSwitch, 1, 0)
+        self.gridLayout.addWidget(self.label_loadForwardSwitch, 1, 1)
+        self.gridLayout.addWidget(self.btn_loadReverseSwitch, 2, 0)
+        self.gridLayout.addWidget(self.label_loadReverseSwitch, 2, 1)
+
+        self.verticalLayout.addLayout(self.gridLayout)
+        self.buttonBox = QtWidgets.QDialogButtonBox(self)
+        self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
+        self.buttonBox.setStandardButtons(QtWidgets.QDialogButtonBox.Cancel|QtWidgets.QDialogButtonBox.Ok)
+        self.verticalLayout.addWidget(self.buttonBox)
+
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.rejected.connect(self.reject)
+
+        self.analyzer = analyzer
+        if self.analyzer is None:
+            self.btn_measureSwitch.setEnabled(False)
+        self.forward = None
+        self.reverse = None
+        self._ready = False
+        self.current_item = None
+
+        self.btn_measureSwitch.clicked.connect(self.measure_switch)
+        self.btn_loadForwardSwitch.clicked.connect(self.load_forward_switch)
+        self.btn_loadReverseSwitch.clicked.connect(self.load_reverse_switch)
+
+        self.ok = self.buttonBox.button(QtWidgets.QDialogButtonBox.Ok)  # type: QtWidgets.QPushButton
+        self.ok.setEnabled(False)
+
+    def measure_switch(self):
+        self.forward, self.reverse = self.analyzer.measure_switch_terms()
+        self.evaluate()
+
+    def load_forward_switch(self):
+        self.forward = load_network_file("Load Forward Switch Terms", "Touchstone 1-port (*.s1p)")
+        if type(self.forward) is not Network:
+            self.forward = None
+
+        self.evaluate()
+
+    def load_reverse_switch(self):
+        self.reverse = load_network_file("Load Reverse Switch Terms", "Touchstone 1-port (*.s1p)")
+        if type(self.reverse) is not Network:
+            self.reverse = None
+
+        self.evaluate()
+
+    @property
+    def ready(self): return self._ready
+
+    @ready.setter
+    def ready(self, val):
+        if val is True:
+            self._ready = True
+            self.ok.setEnabled(True)
+        else:
+            self._ready = False
+            self.ok.setEnabled(False)
+
+    def evaluate(self):
+        if type(self.forward) is Network:
+            self.label_loadForwardSwitch.setText("forward - measured")
+        else:
+            self.label_loadForwardSwitch.setText("forward - not measured")
+
+        if type(self.reverse) is Network:
+            self.label_loadReverseSwitch.setText("reverse - measured")
+        else:
+            self.label_loadReverseSwitch.setText("reverse - not measured")
+
+        if type(self.forward) is Network and type(self.reverse) is Network:
+            self.label_measureSwitch.setText("measured")
+            self.ready = True
+
+
+class ReflectDialog(QtWidgets.QDialog):
+    def __init__(self, analyzer=None, parent=None):
+        super(ReflectDialog, self).__init__(parent)
+
+        self.setWindowTitle("Measure Reflect Standards")
+
+        self.verticalLayout = QtWidgets.QVBoxLayout(self)
+        self.gridLayout = QtWidgets.QGridLayout()
+        self.label_port2 = QtWidgets.QLabel(self)
+        self.gridLayout.addWidget(self.label_port2, 1, 2, 1, 1)
+        self.btn_loadPort1 = QtWidgets.QPushButton(self)
+        self.gridLayout.addWidget(self.btn_loadPort1, 0, 1, 1, 1)
+        self.btn_loadPort2 = QtWidgets.QPushButton(self)
+        self.gridLayout.addWidget(self.btn_loadPort2, 1, 1, 1, 1)
+        self.label_port1 = QtWidgets.QLabel(self)
+        self.gridLayout.addWidget(self.label_port1, 0, 2, 1, 1)
+        self.btn_measurePort2 = QtWidgets.QPushButton(self)
+        self.gridLayout.addWidget(self.btn_measurePort2, 1, 0, 1, 1)
+        self.btn_measurePort1 = QtWidgets.QPushButton(self)
+        self.gridLayout.addWidget(self.btn_measurePort1, 0, 0, 1, 1)
+        self.btn_measureBoth = QtWidgets.QPushButton(self)
+        self.gridLayout.addWidget(self.btn_measureBoth, 2, 0, 1, 1)
+        self.btn_loadBoth = QtWidgets.QPushButton(self)
+        self.gridLayout.addWidget(self.btn_loadBoth, 2, 1, 1, 1)
+        self.verticalLayout.addLayout(self.gridLayout)
+        self.buttonBox = QtWidgets.QDialogButtonBox(self)
+        self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
+        self.buttonBox.setStandardButtons(QtWidgets.QDialogButtonBox.Cancel|QtWidgets.QDialogButtonBox.Ok)
+        self.verticalLayout.addWidget(self.buttonBox)
+
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.rejected.connect(self.reject)
+
+        self.label_port2.setText("port2 - not ready")
+        self.btn_loadPort1.setText("Load Port 1 (.s1p)")
+        self.btn_loadPort2.setText("Load Port (.s1p)")
+        self.label_port1.setText("port1 - not ready")
+        self.btn_measurePort2.setText("Measure Port2")
+        self.btn_measurePort1.setText("Measure Port1")
+        self.btn_measureBoth.setText("Measure Both")
+        self.btn_loadBoth.setText("Load Both (.s2p)")
+
+        self._ready = False
+        self.analyzer = analyzer
+
+        if self.analyzer is None:
+            for btn in (self.btn_measureBoth, self.btn_measurePort1, self.btn_measurePort2):
+                btn.setEnabled(False)
+
+        self.reflect_2port = None
+        self.s11 = None
+        self.s22 = None
+
+        self.ok = self.buttonBox.button(QtWidgets.QDialogButtonBox.Ok)  # type: QtWidgets.QPushButton
+        self.ok.setEnabled(False)
+
+        self.btn_measureBoth.clicked.connect(self.measure_both)
+        self.btn_measurePort1.clicked.connect(self.measure_s11)
+        self.btn_measurePort2.clicked.connect(self.measure_s22)
+
+        self.btn_loadBoth.clicked.connect(self.load_both)
+        self.btn_loadPort1.clicked.connect(self.load_s11)
+        self.btn_loadPort2.clicked.connect(self.load_s22)
+
+    def measure_s11(self):
+        self.s11 = self.analyzer.get_oneport(port=1)
+        self.evaluate()
+
+    def measure_s22(self):
+        self.s22 = self.analyzer.get_oneport(port=2)
+        self.evaluate()
+
+    def measure_both(self):
+        self.reflect_2port = self.analyzer.get_twoport()
+        self.evaluate()
+
+    def load_s11(self):
+        self.s11 = load_network_file("load port 1 reflect", "1-port touchstone (*.s1p)")
+        self.evaluate()
+
+    def load_s22(self):
+        self.s22 = load_network_file("load port 2 reflect", "1-port touchstone (*.s1p)")
+        self.evaluate()
+
+    def load_both(self):
+        self.reflect_2port = load_network_file("load reflect cal standard")
+        self.evaluate()
+
+    @property
+    def ready(self): return self._ready
+
+    @ready.setter
+    def ready(self, val):
+        if val is True:
+            self._ready = True
+            self.ok.setEnabled(True)
+        else:
+            self._ready = False
+            self.ok.setEnabled(False)
+
+    def evaluate(self):
+        if type(self.reflect_2port) is Network:
+            self.ready = True
+            self.label_port1.setText("port1 - measured")
+            self.label_port2.setText("port2 - measured")
+        else:
+            if type(self.s11) is Network and type(self.s22) is Network:
+                self.reflect_2port = four_oneports_2_twoport(self.s11, self.s11, self.s22, self.s22)
+                self.reflect_2port.s[:, 0, 1] = 0
+                self.reflect_2port.s[:, 1, 0] = 0
+                self.ready = True
+                self.label_port1.setText("port1 - measured")
+                self.label_port2.setText("port2 - measured")
+            else:
+                self.ready = False
+                if type(self.s11) is Network:
+                    self.label_port1.setText("port1 - measured")
+                else:
+                    self.label_port1.setText("port1 - not measured")
+                if type(self.s22) is Network:
+                    self.label_port2.setText("port2 - measured")
+                else:
+                    self.label_port2.setText("port2 - not measured")
+
+
+def load_network_file(caption="load network file", filter="touchstone file (*.s2p)"):
+    fname = qt.getOpenFileName_Global(caption, filter)
+    if not fname:
+        return None
+
+    try:
+        ntwk = Network(fname)
+    except Exception as e:
+        qt.error_popup(e)
+        return None
+
+    return ntwk

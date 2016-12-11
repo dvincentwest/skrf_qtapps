@@ -1,7 +1,9 @@
-from . import base_analyzer
+from pyMultiCal.analyzers import base_analyzer
 
-class PNA(base_analyzer.PNA):
+
+class Analyzer(base_analyzer.Analyzer):
     DEFAULT_VISA_ADDRESS = "GPIB0::16::INSTR"
+    NAME = "E8364C"
 
     def measure_twoport_ntwk(self, ports=(1, 2), sweep=True):
         return self.get_twoport(ports, sweep=sweep)

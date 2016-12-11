@@ -1,7 +1,7 @@
 import sys
 
 import sip
-from PyQt5 import QtWidgets
+from qtpy import QtWidgets
 
 from pyMultiCal import trlwidget
 

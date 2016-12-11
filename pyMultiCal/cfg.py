@@ -1,13 +1,12 @@
 import os
 
-# last_path = os.path.expanduser("~")
-last_path = "C:/Coding/Python/pyMultiCal/pyMultiCal/data"
+last_path = "C:/Coding/Python/pyMultiCal/pyMultiCal"
 last_path = os.path.normpath(last_path)
 
 executable_dir = os.getcwd()
 
 if not os.path.isdir(last_path):
-    last_path = executable_dir
+    last_path = os.path.expanduser("~")
 
 path_default = last_path
 
