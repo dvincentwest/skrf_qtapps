@@ -1,12 +1,10 @@
-import visa
-import skrf.vi.vna
+"""
+This is a model module.  It will not function correctly to pull data.
+"""
 
-resource_manager = visa.ResourceManager()
-
-
-class Analyzer(skrf.vi.vna.PNA):
+class Analyzer(object):
     '''
-    class defining an analyzer for using with pyMultiCal.  The base class needs only 6 methods:
+    class defining an analyzer for using with skrf_qtapps.  The base class needs only 6 methods:
     init - setup the instrument resource (i.e., pyvisa)
     measure_twoport_ntwk
     measure_oneport_ntwk
@@ -21,8 +19,8 @@ class Analyzer(skrf.vi.vna.PNA):
     DEFAULT_VISA_ADDRESS = "GPIB0::16::INSTR"
     NAME = "Two Port Analyzer"
 
-    def __init__(self, address, channel=1, timeout=3, echo=False, front_panel_lockout=False, **kwargs):
-        super(Analyzer, self).__init__(address, channel, timeout, echo, front_panel_lockout, **kwargs)
+    def __init__(self):
+        self.resource = None
 
     def __enter__(self):
         """
@@ -49,7 +47,7 @@ class Analyzer(skrf.vi.vna.PNA):
         :param sweep: whether or not to trigger a fresh measurement
         :return: skrf.Network
         """
-        return self.get_twoport(ports, sweep=sweep)
+        pass
 
     def measure_oneport_ntwk(self, port=1, sweep=True):
         """
@@ -57,7 +55,7 @@ class Analyzer(skrf.vi.vna.PNA):
         :param sweep: whether or not to trigger a fresh measurement
         :return: skrf.Network
         """
-        return self.get_oneport(port, sweep=sweep)
+        pass
 
     def measure_switch_terms(self, ports=(1, 2), sweep=True):
         """
@@ -65,4 +63,4 @@ class Analyzer(skrf.vi.vna.PNA):
         :param sweep: whether or not to trigger a fresh measurement
         :return: a lenth-2 iterable of 1-port networks
         """
-        return self.get_switch_terms(ports)
+        pass

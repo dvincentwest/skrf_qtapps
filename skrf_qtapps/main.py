@@ -3,11 +3,12 @@ import sys
 import sip
 from qtpy import QtWidgets
 
-from pyMultiCal import trlwidget
+from skrf_qtapps import trlwidget, qt
 
-app = QtWidgets.QApplication(sys.argv)  # conflicting code requires me to initialize here
+app = QtWidgets.QApplication(sys.argv)
 
 form = trlwidget.TRLWidget()
+qt.set_popup_exceptions()
 form.show()
 
 sip.setdestroyonexit(False)  # prevent a crash on exit

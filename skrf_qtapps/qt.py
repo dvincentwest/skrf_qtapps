@@ -3,7 +3,6 @@ from __future__ import print_function
 import os
 import sys
 import traceback
-
 from qtpy import QtCore, QtWidgets
 
 from . import cfg
@@ -12,13 +11,27 @@ from . import cfg
 def _excepthook(type, value, tback):
     """overrides the default exception hook so that errors will print the error to the command line
     rather than just exiting with code 1 and no other explanation"""
-    # log the exception here
-
-    # then call the default handler
-    error = "\n".join(traceback.format_exception(type, value, tback))
-    QtWidgets.QMessageBox.warning(None, "Python Exception", error, QtWidgets.QMessageBox.Ok)
-    # sys.__excepthook__(type, value, tback)
+    sys.__excepthook__(type, value, tback)
 sys.excepthook = _excepthook
+
+
+def popup_excepthook(type, value, tback):
+    Warning(traceback.format_exception(type, value, tback), "Uncaught Exception").exec()
+
+
+def set_popup_exceptions():
+    sys.excepthook = popup_excepthook
+
+
+# currently necessary because skrf imports pylab, if plotting were not initilized by default, we could remove this
+try:
+    import matplotlib
+    if os.environ['QT_API'] == 'pyqt5':
+        matplotlib.use("Qt5Agg")
+    elif os.environ['QT_API'] in ("pyqt", "pyqt4", "pyside"):
+        matplotlib.use("Qt4Agg")
+except ImportError:
+    print("matplotlib not installed, continuing")
 
 
 def instantiate_app(sys_argv=[]):
@@ -28,23 +41,21 @@ def instantiate_app(sys_argv=[]):
     return app
 
 
-class TextWarning(QtWidgets.QDialog):
-    def __init__(self, text, parent=None):
-        super(TextWarning, self).__init__(parent)
-        self.setWindowTitle("Warning")
-        self.gridLayout = QtWidgets.QGridLayout(self)
-        self.verticalLayout = QtWidgets.QVBoxLayout()
+class Warning(QtWidgets.QDialog):
+    def __init__(self, text, title="Warning", parent=None):
+        super(Warning, self).__init__(parent)
+        self.resize(500, 400)
+        self.verticalLayout = QtWidgets.QVBoxLayout(self)
+        self.verticalLayout.setContentsMargins(0, 0, 0, -1)
         self.textBrowser = QtWidgets.QTextBrowser(self)
         self.verticalLayout.addWidget(self.textBrowser)
-
         self.buttonBox = QtWidgets.QDialogButtonBox(self)
         self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
-        self.buttonBox.setStandardButtons(QtWidgets.QDialogButtonBox.Cancel|QtWidgets.QDialogButtonBox.Ok)
+        self.buttonBox.setStandardButtons(QtWidgets.QDialogButtonBox.Ok)
         self.verticalLayout.addWidget(self.buttonBox)
-        self.gridLayout.addLayout(self.verticalLayout, 0, 0, 1, 1)
-
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
+        self.setWindowTitle(title)
 
         if type(text) in (list, tuple):
             text = "\n".join(text)
@@ -55,7 +66,7 @@ def error_popup(error):
     if not type(error) is str:
         etype, value, tb = sys.exc_info()
         error = "\n".join(traceback.format_exception(etype, value, tb))
-    QtWidgets.QMessageBox.warning(None, "Python Exception", error, QtWidgets.QMessageBox.Ok)
+    Warning(error).exec()
 
 
 def warnMissingFeature():

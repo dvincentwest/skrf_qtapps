@@ -43,4 +43,4 @@ class Ui_Form(object):
         Form.setWindowTitle(_translate("Form", "Form"))
         self.checkBox_useCorrected.setText(_translate("Form", "Plot Corrected"))
 
-from pyMultiCal.widgets import NetworkPlot
+from skrf_qtapps.widgets import NetworkPlot

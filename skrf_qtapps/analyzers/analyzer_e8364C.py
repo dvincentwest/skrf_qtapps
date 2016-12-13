@@ -1,4 +1,4 @@
-from pyMultiCal.analyzers import base_analyzer
+from skrf_qtapps.analyzers import base_analyzer
 
 
 class Analyzer(base_analyzer.Analyzer):

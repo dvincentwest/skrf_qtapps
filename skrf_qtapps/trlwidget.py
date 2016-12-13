@@ -25,6 +25,7 @@ class TRLWidget(QtWidgets.QWidget, trl.Ui_TRL):
         self.listWidget_reflect.reflects = []
         self.listWidget_line.lines = []
         self.calibration = None
+        self.currentItem = None
 
         self.ntwk_plot = widgets.NetworkPlotWidget()
         self.verticalLayout_plotArea.addWidget(self.ntwk_plot)
@@ -34,6 +35,7 @@ class TRLWidget(QtWidgets.QWidget, trl.Ui_TRL):
                       ):  # type: widgets.NetworkListWidget
             _list.itemClicked.connect(self.set_active_network)
             _list.item_removed.connect(self.ntwk_plot.clear_plot)
+            _list.item_updated.connect(self.set_active_network)
             _list.get_save_which_mode = lambda: "raw"
         self.listWidget_thru.item_removed.connect(self.thru_list_item_deleted)
         self.listWidget_measurements.get_save_which_mode = self.get_save_which_mode
@@ -128,6 +130,10 @@ class TRLWidget(QtWidgets.QWidget, trl.Ui_TRL):
         :type item: NetworkListItem
         :return:
         """
+        self.currentItem = item
+        if item is None:
+            return
+
         if type(item.ntwk) in (list, tuple):
             self.ntwk_plot.ntwk_list = item.ntwk
         else:
@@ -291,3 +297,5 @@ class TRLWidget(QtWidgets.QWidget, trl.Ui_TRL):
                 item.ntwk_calibrated.name = item.ntwk.name + "-cal"
         except Exception as e:
             qt.error_popup(e)
+
+        self.set_active_network(self.currentItem)

@@ -2,4 +2,4 @@
 notebooks/
 *.idea/
 *__pycache__/
-pyMultiCal/data/
+skrf_qtapps/data/

@@ -1,6 +1,6 @@
 import os
 
-last_path = "C:/Coding/Python/pyMultiCal/pyMultiCal"
+last_path = "C:/Coding/Python/skrf_qtapps/skrf_qtapps"
 last_path = os.path.normpath(last_path)
 
 executable_dir = os.getcwd()

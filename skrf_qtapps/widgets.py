@@ -1,6 +1,7 @@
 from collections import OrderedDict
 import os.path
 import re
+from math import sqrt
 
 from PyQt5 import QtCore, QtWidgets
 import pyqtgraph as pg
@@ -8,7 +9,7 @@ import skrf
 from qtpy import QtWidgets, QtCore
 from skrf import Network, four_oneports_2_twoport
 
-from pyMultiCal import qt
+from skrf_qtapps import qt
 from . import qt
 
 lime_green = "#00FF00"
@@ -24,8 +25,10 @@ def trace_color_cycle(n=1000):
     :return:
     """
     count = 0
+    colors = [yellow, cyan, magenta, lime_green]
+    num = len(colors)
     while count < n:
-        yield trace_colors_list[count % n]
+        yield colors[count % num]
         count += 1
 
 
@@ -179,6 +182,7 @@ class NetworkListItem(QtWidgets.QListWidgetItem):
 class NetworkListWidget(QtWidgets.QListWidget):
 
     item_removed = QtCore.Signal()
+    item_updated = QtCore.Signal(object)
     save_single_requested = QtCore.Signal(object, str)
 
     def __init__(self, parent=None):
@@ -221,6 +225,7 @@ class NetworkListWidget(QtWidgets.QListWidget):
         item = self.currentItem()  # type: NetworkListItem
         item.setText(self.get_unique_name(item.text(), self.row(item)))
         item.update_ntwk_names()
+        self.item_updated.emit(item)
 
     def listItemRightClicked(self, position):
         menu = QtWidgets.QMenu()
@@ -270,6 +275,7 @@ class NetworkPlotWidget(QtWidgets.QWidget):
         ("phase (deg)", "s_deg"),
         ("phase unwrapped (deg)", "s_deg_unwrap"),
         ("phase (rad)", "s_rad"),
+        ("phase unwrapped (rad)", "s_rad_unwrap"),
         ("real", "s_re"),
         ("imaginary", "s_im"),
     ))
@@ -288,6 +294,8 @@ class NetworkPlotWidget(QtWidgets.QWidget):
 
         self.comboBox_traceSelector = QtWidgets.QComboBox(self)
         self.set_trace_items()
+        self.comboBox_traceSelector.setCurrentIndex(0)
+        self.comboBox_traceSelector.currentIndexChanged.connect(self.plot_ntwk)
 
         self.plot_layout = pg.GraphicsLayoutWidget(self)
 
@@ -316,6 +324,7 @@ class NetworkPlotWidget(QtWidgets.QWidget):
     @ntwk.setter
     def ntwk(self, ntwk):
         if ntwk is None or isinstance(ntwk, skrf.Network):
+            self.set_trace_items(ntwk)
             self._ntwk = ntwk
             self.plot_ntwk()
         elif type(ntwk) in (list, tuple):
@@ -339,12 +348,14 @@ class NetworkPlotWidget(QtWidgets.QWidget):
 
     @ntwk_list.setter
     def ntwk_list(self, ntwk_list):
+        self.set_trace_items(ntwk_list)
         if ntwk_list is None:
             self._ntwk_list = ntwk_list
         elif type(ntwk_list) in (list, tuple):
             for ntwk in ntwk_list:
                 if not isinstance(ntwk, skrf.Network):
                     raise TypeError("all items in list must be network objects")
+            self._ntwk = self._ntwk_corrected = None
             self._ntwk_list = ntwk_list
             self.plot_ntwk_list()
         else:
@@ -353,8 +364,10 @@ class NetworkPlotWidget(QtWidgets.QWidget):
     def set_networks(self, ntwk, ntwk_corrected=None):
         if ntwk is None or isinstance(ntwk, skrf.Network):
             self._ntwk = ntwk
+            self.set_trace_items(self._ntwk)
             if ntwk is None:
                 self._ntwk_corrected = None
+                self.set_trace_items(self._ntwk)
                 return
         else:
             raise TypeError("must set to skrf.Network or None")
@@ -380,9 +393,30 @@ class NetworkPlotWidget(QtWidgets.QWidget):
         self._ntwk_list = None
         self.reset_plot()
 
-    def set_trace_items(self):
+    def set_trace_items(self, ntwk=None):
+        self.comboBox_traceSelector.blockSignals(True)
+        current_index = self.comboBox_traceSelector.currentIndex()
+        nports = 0
+
+        if isinstance(ntwk, Network):
+            nports = ntwk.nports
+        elif type(ntwk) in (list, tuple):
+            for n in ntwk:
+                if n.nports > nports:
+                    nports = n.nports
+
         self.comboBox_traceSelector.clear()
         self.comboBox_traceSelector.addItem("all")
+
+        for n in range(nports):
+            for m in range(nports):
+                self.comboBox_traceSelector.addItem("S{:d}{:d}".format(m + 1, n + 1))
+
+        if current_index <= self.comboBox_traceSelector.count():
+            self.comboBox_traceSelector.setCurrentIndex(current_index)
+        else:
+            self.comboBox_traceSelector.setCurrentIndex(0)
+        self.comboBox_traceSelector.blockSignals(False)
 
     def plot_ntwk(self):
         self.reset_plot()
@@ -393,21 +427,33 @@ class NetworkPlotWidget(QtWidgets.QWidget):
             ntwk = self._ntwk
 
         if ntwk is None:
-            if self.ntwk_list is None:
-                return
-            else:
+            if self.ntwk_list is not None:
                 self.plot_ntwk_list()
+            return
 
         colors = trace_color_cycle(ntwk.s.shape[1] ** 2)
 
-        for i in range(ntwk.s.shape[2]):
-            for j in range(ntwk.s.shape[1]):
+        trace = self.comboBox_traceSelector.currentIndex()
+        mn = _n = _m = 0
+        if trace > 0:
+            mn = trace - 1
+            nports = int(sqrt(self.comboBox_traceSelector.count() - 1))
+            _m = mn % nports
+            _n = int((mn - mn % nports) / nports)
+
+        for n in range(ntwk.s.shape[2]):
+            for m in range(ntwk.s.shape[1]):
                 c = next(colors)
-                label = "S{:d}{:d}".format(j + 1, i + 1)
+
+                if trace > 0:
+                    if not n == _n or not m == _m:
+                        continue
+
+                label = "S{:d}{:d}".format(m + 1, n + 1)
 
                 s_units = self.comboBox_unitsSelector.currentText()
 
-                s = getattr(ntwk, self.S_VALS[s_units])[:, j, i]
+                s = getattr(ntwk, self.S_VALS[s_units])[:, m, n]
                 self.plot.plot(ntwk.f, s, pen=pg.mkPen(c), name=label)
                 self.plot.setLabel("left", s_units)
         self.plot.setTitle(ntwk.name)
@@ -420,18 +466,30 @@ class NetworkPlotWidget(QtWidgets.QWidget):
 
         colors = trace_color_cycle()
 
+        trace = self.comboBox_traceSelector.currentIndex()
+        mn = _n = _m = 0
+        if trace > 0:
+            mn = trace - 1
+            nports = int(sqrt(self.comboBox_traceSelector.count() - 1))
+            _m = mn % nports
+            _n = int((mn - mn % nports) / nports)
+
         for ntwk in self.ntwk_list:
-            for i in range(ntwk.s.shape[2]):
-                for j in range(ntwk.s.shape[1]):
+            for n in range(ntwk.s.shape[2]):
+                for m in range(ntwk.s.shape[1]):
                     c = next(colors)
+
+                    if trace > 0:
+                        if not n == _n or not m == _m:
+                            continue
 
                     label = ntwk.name
                     if ntwk.s.shape[1] > 1:
-                        label += " - S{:d}{:d}".format(j + 1, i + 1)
+                        label += " - S{:d}{:d}".format(m + 1, n + 1)
 
                     s_units = self.comboBox_unitsSelector.currentText()
 
-                    s = getattr(ntwk, self.S_VALS[s_units])[:, j, i]
+                    s = getattr(ntwk, self.S_VALS[s_units])[:, m, n]
                     self.plot.plot(ntwk.f, s, pen=pg.mkPen(c), name=label)
                     self.plot.setLabel("left", s_units)
 
