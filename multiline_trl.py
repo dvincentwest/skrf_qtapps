@@ -3,7 +3,7 @@ import sys
 import sip
 from qtpy import QtWidgets
 
-from skrf_qtapps import trlwidget, qt
+from skrf_qtwidgets import trlwidget, qt
 
 app = QtWidgets.QApplication(sys.argv)
 

@@ -1,6 +1,6 @@
 import os
 
-last_path = "C:/Coding/Python/skrf_qtapps/skrf_qtapps"
+last_path = "C:/Coding/Python/skrf_qtwidgets/skrf_qtwidgets"
 last_path = os.path.normpath(last_path)
 
 executable_dir = os.getcwd()

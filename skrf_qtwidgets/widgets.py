@@ -9,7 +9,7 @@ import skrf
 from qtpy import QtWidgets, QtCore
 from skrf import Network, four_oneports_2_twoport
 
-from skrf_qtapps import qt
+from skrf_qtwidgets import qt
 from . import qt
 
 lime_green = "#00FF00"

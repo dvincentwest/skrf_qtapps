@@ -2,4 +2,4 @@
 notebooks/
 *.idea/
 *__pycache__/
-skrf_qtapps/data/
+skrf_qtwidgets/data/

@@ -4,7 +4,7 @@ This is a model module.  It will not function correctly to pull data.
 
 class Analyzer(object):
     '''
-    class defining an analyzer for using with skrf_qtapps.  The base class needs only 6 methods:
+    class defining an analyzer for using with skrf_qtwidgets.  The base class needs only 6 methods:
     init - setup the instrument resource (i.e., pyvisa)
     measure_twoport_ntwk
     measure_oneport_ntwk

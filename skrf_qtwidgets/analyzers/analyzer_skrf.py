@@ -3,7 +3,7 @@ import skrf.vi.vna
 
 class Analyzer(skrf.vi.vna.PNA):
     '''
-    class defining an analyzer for using with skrf_qtapps.  The base class needs only 6 methods:
+    class defining an analyzer for using with skrf_qtwidgets.  The base class needs only 6 methods:
     init - setup the instrument resource (i.e., pyvisa)
     measure_twoport_ntwk
     measure_oneport_ntwk

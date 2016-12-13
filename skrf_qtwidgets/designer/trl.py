@@ -211,4 +211,4 @@ class Ui_TRL(object):
         self.btn_saveAllMeasurements.setText(_translate("TRL", "Save All"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_measurements), _translate("TRL", "Measurements"))
 
-from skrf_qtapps.widgets import NetworkListWidget
+from skrf_qtwidgets.widgets import NetworkListWidget
