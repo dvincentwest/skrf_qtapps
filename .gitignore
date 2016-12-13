@@ -2,4 +2,6 @@
 notebooks/
 *.idea/
 *__pycache__/
+*.pyc
 skrf_qtwidgets/data/
+skrf_qtwidgets/designer/*.py

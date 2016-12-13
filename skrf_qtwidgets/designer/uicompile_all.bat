@@ -1,1 +1,0 @@
-FOR %%I IN (*.ui) DO pyuic5 %%I -o %%~nI.py
