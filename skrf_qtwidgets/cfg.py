@@ -1,18 +1,12 @@
 import os
 
-last_path = "C:/Coding/Python/skrf_qtwidgets/skrf_qtwidgets"
-last_path = os.path.normpath(last_path)
-
+this_dir = os.path.normpath(os.path.dirname(__file__))
 executable_dir = os.getcwd()
+user_dir = os.path.expanduser("~")
+
+last_path = os.path.join(this_dir, "data/")
 
 if not os.path.isdir(last_path):
-    last_path = os.path.expanduser("~")
+    last_path = user_dir
 
 path_default = last_path
-
-visa_default = ""
-config = {
-    "visa resource": visa_default,
-    "visa timeout": 10000,
-    "default directory": path_default,
-}

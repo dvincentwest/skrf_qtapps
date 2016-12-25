@@ -16,7 +16,7 @@ sys.excepthook = _excepthook
 
 
 def popup_excepthook(type, value, tback):
-    Warning(traceback.format_exception(type, value, tback), "Uncaught Exception").exec()
+    WarningMsgBox(traceback.format_exception(type, value, tback), "Uncaught Exception").exec()
 
 
 def set_popup_exceptions():
@@ -24,26 +24,30 @@ def set_popup_exceptions():
 
 
 # currently necessary because skrf imports pylab, if plotting were not initilized by default, we could remove this
-try:
-    import matplotlib
-    if os.environ['QT_API'] == 'pyqt5':
-        matplotlib.use("Qt5Agg")
-    elif os.environ['QT_API'] in ("pyqt", "pyqt4", "pyside"):
-        matplotlib.use("Qt4Agg")
-except ImportError:
-    print("matplotlib not installed, continuing")
+def reconcile_with_matplotlib():
+    try:
+        import matplotlib
+        if os.environ['QT_API'] == 'pyqt5':
+            matplotlib.use("Qt5Agg")
+        elif os.environ['QT_API'] in ("pyqt", "pyqt4", "pyside"):
+            matplotlib.use("Qt4Agg")
+    except ImportError:
+        print("matplotlib not installed, continuing")
 
 
-def instantiate_app(sys_argv=[]):
+def instantiate_app(sys_argv=None):
+    if type(sys_argv) is None:
+        sys_argv = []
+
     app = QtWidgets.QApplication.instance()
     if app is None:
         app = QtWidgets.QApplication(sys_argv)
     return app
 
 
-class Warning(QtWidgets.QDialog):
+class WarningMsgBox(QtWidgets.QDialog):
     def __init__(self, text, title="Warning", parent=None):
-        super(Warning, self).__init__(parent)
+        super(WarningMsgBox, self).__init__(parent)
         self.resize(500, 400)
         self.verticalLayout = QtWidgets.QVBoxLayout(self)
         self.verticalLayout.setContentsMargins(0, 0, 0, -1)
@@ -66,7 +70,7 @@ def error_popup(error):
     if not type(error) is str:
         etype, value, tb = sys.exc_info()
         error = "\n".join(traceback.format_exception(etype, value, tb))
-    Warning(error).exec()
+    WarningMsgBox(error).exec()
 
 
 def warnMissingFeature():

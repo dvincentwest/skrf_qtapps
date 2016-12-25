@@ -6,11 +6,11 @@ from qtpy import QtWidgets
 from skrf_qtwidgets import qt
 # qt.reconcile_with_matplotlib()  # needed for skrf which initialized matplotlib by default
 
-from skrf_qtwidgets import trlwidget
+from skrf_qtwidgets import widgets
 
 app = QtWidgets.QApplication(sys.argv)
 
-form = trlwidget.TRLWidget()
+form = widgets.VnaController()
 qt.set_popup_exceptions()
 form.show()
 

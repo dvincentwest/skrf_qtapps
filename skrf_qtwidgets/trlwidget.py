@@ -1,171 +1,134 @@
 import re
 
-import skrf.calibration
 from qtpy import QtWidgets, QtCore
-from skrf import Network
+import skrf
 
 from . import qt
-from .analyzers import analyzers
 from . import widgets
-from .widgets import NetworkListWidget
 
 
-class Ui_TRL(object):
-    def setupUi(self, TRL):
-        TRL.resize(850, 500)
-        self.tab_calStandards_layout_2 = QtWidgets.QVBoxLayout(TRL)
-        self.horizontalLayout_10 = QtWidgets.QHBoxLayout()
-        self.horizontalLayout_9 = QtWidgets.QHBoxLayout()
-        self.horizontalLayout_10.addLayout(self.horizontalLayout_9)
-        self.checkBox_TriggerNew = QtWidgets.QCheckBox(TRL)
-        self.horizontalLayout_10.addWidget(self.checkBox_TriggerNew)
-        self.horizontalLayout_8 = QtWidgets.QHBoxLayout()
-        self.label_6 = QtWidgets.QLabel(TRL)
-        self.horizontalLayout_8.addWidget(self.label_6)
-        self.comboBox_analyzer = QtWidgets.QComboBox(TRL)
-        self.comboBox_analyzer.addItem("")
-        self.horizontalLayout_8.addWidget(self.comboBox_analyzer)
-        self.horizontalLayout_10.addLayout(self.horizontalLayout_8)
-        self.horizontalLayout_7 = QtWidgets.QHBoxLayout()
-        self.label_7 = QtWidgets.QLabel(TRL)
-        self.horizontalLayout_7.addWidget(self.label_7)
-        self.lineEdit_visaString = QtWidgets.QLineEdit(TRL)
-        self.horizontalLayout_7.addWidget(self.lineEdit_visaString)
-        self.horizontalLayout_10.addLayout(self.horizontalLayout_7)
-        self.tab_calStandards_layout_2.addLayout(self.horizontalLayout_10)
-        self.splitter = QtWidgets.QSplitter(TRL)
-        self.splitter.setOrientation(QtCore.Qt.Horizontal)
-        self.tabWidget = QtWidgets.QTabWidget(self.splitter)
-        self.tab_calStandards = QtWidgets.QWidget()
-        self.tab_calStandards_layout = QtWidgets.QVBoxLayout(self.tab_calStandards)
-        self.tab_calStandards_layout.setContentsMargins(8, 8, 8, 8)
-        self.horizontalLayout = QtWidgets.QHBoxLayout()
-        self.label = QtWidgets.QLabel(self.tab_calStandards)
-        self.horizontalLayout.addWidget(self.label)
-        self.btn_measureThru = QtWidgets.QPushButton(self.tab_calStandards)
-        self.horizontalLayout.addWidget(self.btn_measureThru)
-        self.btn_loadThru = QtWidgets.QPushButton(self.tab_calStandards)
-        self.horizontalLayout.addWidget(self.btn_loadThru)
-        self.tab_calStandards_layout.addLayout(self.horizontalLayout)
-        self.horizontalLayout_6 = QtWidgets.QHBoxLayout()
-        self.label_5 = QtWidgets.QLabel(self.tab_calStandards)
-        self.horizontalLayout_6.addWidget(self.label_5)
-        self.btn_measureSwitchTerms = QtWidgets.QPushButton(self.tab_calStandards)
-        self.horizontalLayout_6.addWidget(self.btn_measureSwitchTerms)
-        self.btn_loadSwitchTerms = QtWidgets.QPushButton(self.tab_calStandards)
-        self.horizontalLayout_6.addWidget(self.btn_loadSwitchTerms)
-        self.tab_calStandards_layout.addLayout(self.horizontalLayout_6)
-        self.listWidget_thru = NetworkListWidget(self.tab_calStandards)
-        self.tab_calStandards_layout.addWidget(self.listWidget_thru)
-        self.tab_calStandards_2 = QtWidgets.QHBoxLayout()
-        self.label_2 = QtWidgets.QLabel(self.tab_calStandards)
-        self.tab_calStandards_2.addWidget(self.label_2)
-        self.btn_measureReflect = QtWidgets.QPushButton(self.tab_calStandards)
-        self.tab_calStandards_2.addWidget(self.btn_measureReflect)
-        self.btn_loadReflect = QtWidgets.QPushButton(self.tab_calStandards)
-        self.tab_calStandards_2.addWidget(self.btn_loadReflect)
-        self.tab_calStandards_layout.addLayout(self.tab_calStandards_2)
-        self.listWidget_reflect = NetworkListWidget(self.tab_calStandards)
-        self.tab_calStandards_layout.addWidget(self.listWidget_reflect)
-        self.horizontalLayout_3 = QtWidgets.QHBoxLayout()
-        self.label_3 = QtWidgets.QLabel(self.tab_calStandards)
-        self.horizontalLayout_3.addWidget(self.label_3)
-        self.btn_measureLine = QtWidgets.QPushButton(self.tab_calStandards)
-        self.horizontalLayout_3.addWidget(self.btn_measureLine)
-        self.btn_loadLine = QtWidgets.QPushButton(self.tab_calStandards)
-        self.horizontalLayout_3.addWidget(self.btn_loadLine)
-        self.tab_calStandards_layout.addLayout(self.horizontalLayout_3)
-        self.listWidget_line = NetworkListWidget(self.tab_calStandards)
-        self.tab_calStandards_layout.addWidget(self.listWidget_line)
-        self.horizontalLayout_11 = QtWidgets.QHBoxLayout()
-        self.btn_saveCalibration = QtWidgets.QPushButton(self.tab_calStandards)
-        self.horizontalLayout_11.addWidget(self.btn_saveCalibration)
-        self.btn_loadCalibration = QtWidgets.QPushButton(self.tab_calStandards)
-        self.horizontalLayout_11.addWidget(self.btn_loadCalibration)
-        self.tab_calStandards_layout.addLayout(self.horizontalLayout_11)
-        self.tabWidget.addTab(self.tab_calStandards, "")
-        self.tab_measurements = QtWidgets.QWidget()
-        self.tab_measurements_layout = QtWidgets.QVBoxLayout(self.tab_measurements)
-        self.tab_measurements_layout.setContentsMargins(8, 8, 8, 8)
-        self.horizontalLayout_5 = QtWidgets.QHBoxLayout()
-        self.btn_measureMeasurement = QtWidgets.QPushButton(self.tab_measurements)
-        self.horizontalLayout_5.addWidget(self.btn_measureMeasurement)
-        self.btn_loadMeasurement = QtWidgets.QPushButton(self.tab_measurements)
-        self.horizontalLayout_5.addWidget(self.btn_loadMeasurement)
-        self.btn_calibrate = QtWidgets.QPushButton(self.tab_measurements)
-        self.horizontalLayout_5.addWidget(self.btn_calibrate)
-        self.tab_measurements_layout.addLayout(self.horizontalLayout_5)
-        self.listWidget_measurements = NetworkListWidget(self.tab_measurements)
-        self.tab_measurements_layout.addWidget(self.listWidget_measurements)
-        self.groupBox = QtWidgets.QGroupBox(self.tab_measurements)
-        self.verticalLayout = QtWidgets.QVBoxLayout(self.groupBox)
-        self.horizontalLayout_2 = QtWidgets.QHBoxLayout()
-        self.radio_saveRaw = QtWidgets.QRadioButton(self.groupBox)
-        self.horizontalLayout_2.addWidget(self.radio_saveRaw)
-        self.radio_saveCal = QtWidgets.QRadioButton(self.groupBox)
-        self.horizontalLayout_2.addWidget(self.radio_saveCal)
-        self.radio_saveBoth = QtWidgets.QRadioButton(self.groupBox)
-        self.radio_saveBoth.setChecked(True)
-        self.horizontalLayout_2.addWidget(self.radio_saveBoth)
-        self.verticalLayout.addLayout(self.horizontalLayout_2)
-        self.horizontalLayout_4 = QtWidgets.QHBoxLayout()
-        self.btn_saveSelectedMeasurements = QtWidgets.QPushButton(self.groupBox)
-        self.horizontalLayout_4.addWidget(self.btn_saveSelectedMeasurements)
-        self.btn_saveAllMeasurements = QtWidgets.QPushButton(self.groupBox)
-        self.horizontalLayout_4.addWidget(self.btn_saveAllMeasurements)
-        self.verticalLayout.addLayout(self.horizontalLayout_4)
-        self.tab_measurements_layout.addWidget(self.groupBox)
-        self.tabWidget.addTab(self.tab_measurements, "")
-        self.layoutWidget = QtWidgets.QWidget(self.splitter)
-        self.verticalLayout_plotArea = QtWidgets.QVBoxLayout(self.layoutWidget)
-        self.verticalLayout_plotArea.setContentsMargins(0, 0, 0, 0)
-        self.tab_calStandards_layout_2.addWidget(self.splitter)
-
-        self.retranslateUi(TRL)
-        self.tabWidget.setCurrentIndex(0)
-        QtCore.QMetaObject.connectSlotsByName(TRL)
-
-    def retranslateUi(self, TRL):
-        _translate = QtCore.QCoreApplication.translate
-        TRL.setWindowTitle(_translate("TRL", "Multiline TRL Calibration"))
-        self.checkBox_TriggerNew.setText(_translate("TRL", "Trigger New"))
-        self.label_6.setText(_translate("TRL", "Network Analyzer"))
-        self.comboBox_analyzer.setItemText(0, _translate("TRL", "none"))
-        self.label_7.setText(_translate("TRL", "Visa String"))
-        self.label.setText(_translate("TRL", "Thru"))
-        self.btn_measureThru.setText(_translate("TRL", "Measure"))
-        self.btn_loadThru.setText(_translate("TRL", "Load"))
-        self.label_5.setText(_translate("TRL", "Switch Terms"))
-        self.btn_measureSwitchTerms.setText(_translate("TRL", "Measure"))
-        self.btn_loadSwitchTerms.setText(_translate("TRL", "Load"))
-        self.label_2.setText(_translate("TRL", "Reflect"))
-        self.btn_measureReflect.setText(_translate("TRL", "Measure"))
-        self.btn_loadReflect.setText(_translate("TRL", "Load"))
-        self.label_3.setText(_translate("TRL", "Line"))
-        self.btn_measureLine.setText(_translate("TRL", "Measure"))
-        self.btn_loadLine.setText(_translate("TRL", "Load"))
-        self.btn_saveCalibration.setText(_translate("TRL", "Save Cal"))
-        self.btn_loadCalibration.setText(_translate("TRL", "Load Cal"))
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_calStandards), _translate("TRL", "Cal Standards"))
-        self.btn_measureMeasurement.setText(_translate("TRL", "Measure"))
-        self.btn_loadMeasurement.setText(_translate("TRL", "Load"))
-        self.btn_calibrate.setText(_translate("TRL", "Calibrate"))
-        self.groupBox.setTitle(_translate("TRL", "Save Options"))
-        self.radio_saveRaw.setText(_translate("TRL", "Save Raw"))
-        self.radio_saveCal.setText(_translate("TRL", "Save Cal"))
-        self.radio_saveBoth.setText(_translate("TRL", "Save Both"))
-        self.btn_saveSelectedMeasurements.setText(_translate("TRL", "Save Selected"))
-        self.btn_saveAllMeasurements.setText(_translate("TRL", "Save All"))
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_measurements), _translate("TRL", "Measurements"))
-
-
-class TRLWidget(QtWidgets.QWidget, Ui_TRL):
+class TRLWidget(QtWidgets.QWidget):
     THRU_ID = "thru"
     SWITCH_TERMS_ID = "switch terms"
 
     def __init__(self, parent=None):
         super(TRLWidget, self).__init__(parent)
-        self.setupUi(self)
+
+        # --- Setup UI --- #
+        self.resize(900, 600)
+        self.verticalLayout_main = QtWidgets.QVBoxLayout(self)
+
+        self.vna_controller = widgets.VnaController()
+        self.vna_controller.verticalLayout.setContentsMargins(3, 3, 3, 3)
+        self.verticalLayout_main.addWidget(self.vna_controller)
+
+        self.splitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal, self)
+        self.splitter.setContentsMargins(3, 3, 3, 3)
+
+        self.tabWidget = QtWidgets.QTabWidget(self.splitter)
+        self.tab_calStandards = QtWidgets.QWidget()
+        self.tab_calStandards_layout = QtWidgets.QVBoxLayout(self.tab_calStandards)
+
+        self.label_thru = QtWidgets.QLabel("Thru", self.tab_calStandards)
+        self.btn_measureThru = QtWidgets.QPushButton("Measure", self.tab_calStandards)
+        self.btn_loadThru = QtWidgets.QPushButton("Load", self.tab_calStandards)
+        self.hlay_thru = QtWidgets.QHBoxLayout()
+        self.hlay_thru.addWidget(self.label_thru)
+        self.hlay_thru.addWidget(self.btn_measureThru)
+        self.hlay_thru.addWidget(self.btn_loadThru)
+        self.tab_calStandards_layout.addLayout(self.hlay_thru)
+
+        self.label_switchTerms = QtWidgets.QLabel("Switch Terms", self.tab_calStandards)
+        self.btn_measureSwitchTerms = QtWidgets.QPushButton("Measure", self.tab_calStandards)
+        self.btn_loadSwitchTerms = QtWidgets.QPushButton("Load", self.tab_calStandards)
+        self.hlay_switchTerms = QtWidgets.QHBoxLayout()
+        self.hlay_switchTerms.addWidget(self.label_switchTerms)
+        self.hlay_switchTerms.addWidget(self.btn_measureSwitchTerms)
+        self.hlay_switchTerms.addWidget(self.btn_loadSwitchTerms)
+        self.tab_calStandards_layout.addLayout(self.hlay_switchTerms)
+
+        self.listWidget_thru = widgets.NetworkListWidget(self.tab_calStandards)
+        self.tab_calStandards_layout.addWidget(self.listWidget_thru)
+
+        self.label_reflect = QtWidgets.QLabel("Reflect", self.tab_calStandards)
+        self.btn_measureReflect = QtWidgets.QPushButton("Measure", self.tab_calStandards)
+        self.btn_loadReflect = QtWidgets.QPushButton("Load", self.tab_calStandards)
+        self.hlay_reflect = QtWidgets.QHBoxLayout()
+        self.hlay_reflect.addWidget(self.label_reflect)
+        self.hlay_reflect.addWidget(self.btn_measureReflect)
+        self.hlay_reflect.addWidget(self.btn_loadReflect)
+        self.tab_calStandards_layout.addLayout(self.hlay_reflect)
+
+        self.listWidget_reflect = widgets.NetworkListWidget(self.tab_calStandards)
+        self.tab_calStandards_layout.addWidget(self.listWidget_reflect)
+
+        self.label_line = QtWidgets.QLabel("Line", self.tab_calStandards)
+        self.btn_measureLine = QtWidgets.QPushButton("Measure", self.tab_calStandards)
+        self.btn_loadLine = QtWidgets.QPushButton("Load", self.tab_calStandards)
+        self.hlay_line = QtWidgets.QHBoxLayout()
+        self.hlay_line.addWidget(self.label_line)
+        self.hlay_line.addWidget(self.btn_measureLine)
+        self.hlay_line.addWidget(self.btn_loadLine)
+        self.tab_calStandards_layout.addLayout(self.hlay_line)
+
+        self.listWidget_line = widgets.NetworkListWidget(self.tab_calStandards)
+        self.tab_calStandards_layout.addWidget(self.listWidget_line)
+
+        self.btn_saveCalibration = QtWidgets.QPushButton("Save Cal", self.tab_calStandards)
+        self.btn_loadCalibration = QtWidgets.QPushButton("Load Cal", self.tab_calStandards)
+        self.hlay_saveCal = QtWidgets.QHBoxLayout()
+        self.hlay_saveCal.addWidget(self.btn_saveCalibration)
+        self.hlay_saveCal.addWidget(self.btn_loadCalibration)
+        self.tab_calStandards_layout.addLayout(self.hlay_saveCal)
+
+        self.tabWidget.addTab(self.tab_calStandards, "Cal Standards")
+
+        self.tab_measurements = QtWidgets.QWidget()
+        self.tab_measurements_layout = QtWidgets.QVBoxLayout(self.tab_measurements)
+
+        self.btn_measureMeasurement = QtWidgets.QPushButton("Measure", self.tab_measurements)
+        self.btn_loadMeasurement = QtWidgets.QPushButton("Load", self.tab_measurements)
+        self.btn_calibrate = QtWidgets.QPushButton("Calibrate", self.tab_measurements)
+        self.hlay_measurementButtons = QtWidgets.QHBoxLayout()
+        self.hlay_measurementButtons.addWidget(self.btn_loadMeasurement)
+        self.hlay_measurementButtons.addWidget(self.btn_measureMeasurement)
+        self.hlay_measurementButtons.addWidget(self.btn_calibrate)
+        self.tab_measurements_layout.addLayout(self.hlay_measurementButtons)
+
+        self.listWidget_measurements = widgets.NetworkListWidget(self.tab_measurements)
+        self.tab_measurements_layout.addWidget(self.listWidget_measurements)
+
+        self.groupBox_saveOptions = QtWidgets.QGroupBox("Save Options", self.tab_measurements)
+
+        self.vlay_saveOptions = QtWidgets.QVBoxLayout(self.groupBox_saveOptions)
+        
+        self.radio_saveRaw = QtWidgets.QRadioButton("Save Raw", self.groupBox_saveOptions)
+        self.radio_saveCal = QtWidgets.QRadioButton("Save Cal", self.groupBox_saveOptions)
+        self.radio_saveBoth = QtWidgets.QRadioButton("Save Both", self.groupBox_saveOptions)
+        self.radio_saveBoth.setChecked(True)
+        self.hlay_saveOptionsRadio = QtWidgets.QHBoxLayout()
+        self.hlay_saveOptionsRadio.addWidget(self.radio_saveRaw)
+        self.hlay_saveOptionsRadio.addWidget(self.radio_saveCal)
+        self.hlay_saveOptionsRadio.addWidget(self.radio_saveBoth)
+        self.vlay_saveOptions.addLayout(self.hlay_saveOptionsRadio)
+        
+        self.btn_saveSelectedMeasurements = QtWidgets.QPushButton("Save Selected", self.groupBox_saveOptions)
+        self.btn_saveAllMeasurements = QtWidgets.QPushButton("Save All", self.groupBox_saveOptions)
+        self.hlay_saveMeasurementButtons = QtWidgets.QHBoxLayout()
+        self.hlay_saveMeasurementButtons.addWidget(self.btn_saveSelectedMeasurements)
+        self.hlay_saveMeasurementButtons.addWidget(self.btn_saveAllMeasurements)
+        self.vlay_saveOptions.addLayout(self.hlay_saveMeasurementButtons)
+
+        self.tab_measurements_layout.addWidget(self.groupBox_saveOptions)
+        self.tabWidget.addTab(self.tab_measurements, "Measurements")
+
+        self.layoutWidget = QtWidgets.QWidget(self.splitter)
+        self.verticalLayout_plotArea = QtWidgets.QVBoxLayout(self.layoutWidget)
+        self.verticalLayout_plotArea.setContentsMargins(0, 0, 0, 0)
+        self.verticalLayout_main.addWidget(self.splitter)
+
+        self.tabWidget.setCurrentIndex(0)
+        # --- END SETUP UI --- #
 
         self.setWindowTitle("Multiline TRL Calibration")
 
@@ -207,21 +170,15 @@ class TRLWidget(QtWidgets.QWidget, Ui_TRL):
         self.btn_saveSelectedMeasurements.clicked.connect(self.listWidget_measurements.save_single_item)
         self.btn_saveAllMeasurements.clicked.connect(self.save_all_measurements)
 
-        self.comboBox_analyzer.currentIndexChanged.connect(self.set_visa_address)
-        for key, val in analyzers.items():
-            self.comboBox_analyzer.addItem(key)
-        self.comboBox_analyzer.removeItem(0)
-        self.comboBox_analyzer.setCurrentIndex(0)
-
     def save_all_measurements(self):
         save_which = self.get_save_which_mode()
         ntwk_list = []
 
         for i in range(self.listWidget_measurements.count()):
             item = self.listWidget_measurements.item(i)
-            if save_which != "cal" and isinstance(item.ntwk, Network):
+            if save_which != "cal" and isinstance(item.ntwk, skrf.Network):
                 ntwk_list.append(item.ntwk)
-            if save_which != "raw" and isinstance(item.ntwk_calibrated, Network):
+            if save_which != "raw" and isinstance(item.ntwk_calibrated, skrf.Network):
                 ntwk_list.append(item.ntwk_calibrated)
 
         widgets.save_multiple_networks(ntwk_list)
@@ -266,14 +223,6 @@ class TRLWidget(QtWidgets.QWidget, Ui_TRL):
                     break
         return name
 
-    def set_visa_address(self):
-        self.lineEdit_visaString.setText(
-            analyzers[self.comboBox_analyzer.currentText()].DEFAULT_VISA_ADDRESS
-        )
-
-    def get_analyzer(self):
-        return analyzers[self.comboBox_analyzer.currentText()](self.lineEdit_visaString.text())
-
     def set_active_network(self, item):
         """
         :type item: NetworkListItem
@@ -296,13 +245,13 @@ class TRLWidget(QtWidgets.QWidget, Ui_TRL):
             self.listWidget_thru.switch_terms = None
 
     def measure_thru(self):
-        with self.get_analyzer() as nwa:
+        with self.vna_controller.get_analyzer() as nwa:
             thru = nwa.measure_twoport_ntwk()
             thru.name = "thru"
         self.load_thru(thru)
 
     def measure_reflect(self):
-        with self.get_analyzer() as nwa:
+        with self.vna_controller.get_analyzer() as nwa:
             dialog = widgets.ReflectDialog(nwa)
             try:
                 accepted = dialog.exec_()
@@ -314,19 +263,19 @@ class TRLWidget(QtWidgets.QWidget, Ui_TRL):
                 dialog.close()
 
     def measure_line(self):
-        with self.get_analyzer() as nwa:
+        with self.vna_controller.get_analyzer() as nwa:
             line = nwa.measure_twoport_ntwk()
             line.name = self.get_unique_name("line", self.listWidget_line)
         self.load_network(line, self.listWidget_line)
 
     def measure_measurement(self):
-        with self.get_analyzer() as nwa:
+        with self.vna_controller.get_analyzer() as nwa:
             meas = nwa.measure_twoport_ntwk()
             meas.name = self.get_unique_name("meas", self.listWidget_measurements)
         self.load_network(meas, self.listWidget_measurements)
 
     def measure_switch_terms(self):
-        with self.get_analyzer() as nwa:
+        with self.vna_controller.get_analyzer() as nwa:
             dialog = widgets.SwitchTermsDialog(nwa)
             try:
                 accepted = dialog.exec_()
@@ -348,13 +297,13 @@ class TRLWidget(QtWidgets.QWidget, Ui_TRL):
         self.set_active_network(item)
 
     def load_from_file(self, list_widget, caption):
-        ntwk = widgets.load_network_file(caption)  # type: Network
+        ntwk = widgets.load_network_file(caption)  # type: skrf.Network
         if not ntwk:
             return
         self.load_network(ntwk, list_widget)
 
     def load_thru(self, thru=None):
-        if type(thru) is not Network:
+        if type(thru) is not skrf.Network:
             thru = widgets.load_network_file("load thru file")
 
         if not thru:

@@ -3,20 +3,26 @@ import os.path
 import re
 from math import sqrt
 
-from PyQt5 import QtCore, QtWidgets
+from qtpy import QtWidgets, QtCore, QtGui
 import pyqtgraph as pg
 import skrf
-from qtpy import QtWidgets, QtCore
-from skrf import Network, four_oneports_2_twoport
 
-from skrf_qtwidgets import qt
 from . import qt
+from .analyzers import analyzers
 
-lime_green = "#00FF00"
-cyan = "#00FFFF"
-magenta = "FF00FF"
-yellow = "#FFFF00"
-trace_colors_list = [yellow, cyan, magenta, lime_green]
+
+def load_network_file(caption="load network file", filter="touchstone file (*.s2p)"):
+    fname = qt.getOpenFileName_Global(caption, filter)
+    if not fname:
+        return None
+
+    try:
+        ntwk = skrf.Network(fname)
+    except Exception as e:
+        qt.error_popup(e)
+        return None
+
+    return ntwk
 
 
 def trace_color_cycle(n=1000):
@@ -24,6 +30,12 @@ def trace_color_cycle(n=1000):
     :type n: int
     :return:
     """
+
+    lime_green = "#00FF00"
+    cyan = "#00FFFF"
+    magenta = "FF00FF"
+    yellow = "#FFFF00"
+
     count = 0
     colors = [yellow, cyan, magenta, lime_green]
     num = len(colors)
@@ -70,7 +82,7 @@ def save_multiple_networks(ntwk_list):
 def save_NetworkListItem(ntwk_list_item, save_which):
     """
     :type ntwk_list_item: NetworkListItem
-    :param save_which: str
+    :type save_which: str
     :return:
     """
 
@@ -84,7 +96,7 @@ def save_NetworkListItem(ntwk_list_item, save_which):
         save_multiple_networks(ntwk)
         return
     elif not isinstance(ntwk, skrf.Network):
-        raise TypeError("ntwk must be a Network object to save")
+        raise TypeError("ntwk must be a skrf.Network object to save")
 
     extension = ".s{:d}p".format(ntwk.s.shape[1])
     file_filter = "touchstone format (*{:s})".format(extension)
@@ -92,12 +104,12 @@ def save_NetworkListItem(ntwk_list_item, save_which):
 
     if save_which.lower() == "both":
         if isinstance(ntwk, skrf.Network) and isinstance(ntwk_c, skrf.Network):
-            filename = qt.getSaveFileName_Global("Save Raw Network File", filter=file_filter, start_path=filename)
+            filename = qt.getSaveFileName_Global("Save Raw skrf.Network File", filter=file_filter, start_path=filename)
             if not filename:
                 return
             base, ext = os.path.splitext(filename)
             filename_cal = base + "-cal" + ext
-            filename_cal = qt.getSaveFileName_Global("Save Calibrated Network File",
+            filename_cal = qt.getSaveFileName_Global("Save Calibrated skrf.Network File",
                                                  filter=file_filter,
                                                  start_path=filename_cal)
             if not filename_cal:
@@ -116,7 +128,7 @@ def save_NetworkListItem(ntwk_list_item, save_which):
             ntwk = ntwk_list_item.ntwk_calibrated
             filename = os.path.join(qt.cfg.last_path, ntwk.name + extension)
 
-    caption = "Save Network File" if save_which.lower() == "raw" else "Save Calibrated Network File"
+    caption = "Save skrf.Network File" if save_which.lower() == "raw" else "Save Calibrated skrf.Network File"
     filename = qt.getSaveFileName_Global(caption, filter=file_filter, start_path=filename)
     ntwk.write_touchstone(filename)
 
@@ -194,11 +206,11 @@ class NetworkListWidget(QtWidgets.QListWidget):
         self.itemDelegate().commitData.connect(self.item_text_updated)
 
     def get_unique_name(self, name, exclude_item=-1):
-        '''
+        """
         :type name: str
         :type exclude_item: int
         :return:
-        '''
+        """
         names = []
         for i in range(self.count()):
             if i == exclude_item:
@@ -268,7 +280,7 @@ class NetworkListWidget(QtWidgets.QListWidget):
 
 
 class NetworkPlotWidget(QtWidgets.QWidget):
-
+    # TODO: add option here to accomodate A, Y and Z
     S_VALS = OrderedDict((
         ("decibels", "s_db"),
         ("magnitude", "s_mag"),
@@ -359,7 +371,7 @@ class NetworkPlotWidget(QtWidgets.QWidget):
             self._ntwk_list = ntwk_list
             self.plot_ntwk_list()
         else:
-            raise TypeError("must provide a list of Network Objects")
+            raise TypeError("must provide a list of skrf.Network Objects")
 
     def set_networks(self, ntwk, ntwk_corrected=None):
         if ntwk is None or isinstance(ntwk, skrf.Network):
@@ -398,7 +410,7 @@ class NetworkPlotWidget(QtWidgets.QWidget):
         current_index = self.comboBox_traceSelector.currentIndex()
         nports = 0
 
-        if isinstance(ntwk, Network):
+        if isinstance(ntwk, skrf.Network):
             nports = ntwk.nports
         elif type(ntwk) in (list, tuple):
             for n in ntwk:
@@ -434,7 +446,7 @@ class NetworkPlotWidget(QtWidgets.QWidget):
         colors = trace_color_cycle(ntwk.s.shape[1] ** 2)
 
         trace = self.comboBox_traceSelector.currentIndex()
-        mn = _n = _m = 0
+        _n = _m = 0
         if trace > 0:
             mn = trace - 1
             nports = int(sqrt(self.comboBox_traceSelector.count() - 1))
@@ -467,12 +479,12 @@ class NetworkPlotWidget(QtWidgets.QWidget):
         colors = trace_color_cycle()
 
         trace = self.comboBox_traceSelector.currentIndex()
-        mn = _n = _m = 0
+        n_ = m_ = 0
         if trace > 0:
             mn = trace - 1
             nports = int(sqrt(self.comboBox_traceSelector.count() - 1))
-            _m = mn % nports
-            _n = int((mn - mn % nports) / nports)
+            m_ = mn % nports
+            n_ = int((mn - mn % nports) / nports)
 
         for ntwk in self.ntwk_list:
             for n in range(ntwk.s.shape[2]):
@@ -480,7 +492,7 @@ class NetworkPlotWidget(QtWidgets.QWidget):
                     c = next(colors)
 
                     if trace > 0:
-                        if not n == _n or not m == _m:
+                        if not n == n_ or not m == m_:
                             continue
 
                     label = ntwk.name
@@ -547,14 +559,14 @@ class SwitchTermsDialog(QtWidgets.QDialog):
 
     def load_forward_switch(self):
         self.forward = load_network_file("Load Forward Switch Terms", "Touchstone 1-port (*.s1p)")
-        if type(self.forward) is not Network:
+        if type(self.forward) is not skrf.Network:
             self.forward = None
 
         self.evaluate()
 
     def load_reverse_switch(self):
         self.reverse = load_network_file("Load Reverse Switch Terms", "Touchstone 1-port (*.s1p)")
-        if type(self.reverse) is not Network:
+        if type(self.reverse) is not skrf.Network:
             self.reverse = None
 
         self.evaluate()
@@ -572,19 +584,134 @@ class SwitchTermsDialog(QtWidgets.QDialog):
             self.ok.setEnabled(False)
 
     def evaluate(self):
-        if type(self.forward) is Network:
+        if type(self.forward) is skrf.Network:
             self.label_loadForwardSwitch.setText("forward - measured")
         else:
             self.label_loadForwardSwitch.setText("forward - not measured")
 
-        if type(self.reverse) is Network:
+        if type(self.reverse) is skrf.Network:
             self.label_loadReverseSwitch.setText("reverse - measured")
         else:
             self.label_loadReverseSwitch.setText("reverse - not measured")
 
-        if type(self.forward) is Network and type(self.reverse) is Network:
+        if type(self.forward) is skrf.Network and type(self.reverse) is skrf.Network:
             self.label_measureSwitch.setText("measured")
             self.ready = True
+
+
+class VnaController(QtWidgets.QWidget):
+    FUNITS = ["Hz", "kHz", "MHz", "GHz", "PHz"]
+    FCONVERSIONS = {"Hz": 1., "kHz": 1e-3, "MHz": 1e-6, "GHz": 1e-9, "PHz": 1e-12}
+
+    def __init__(self, parent=None):
+        super(VnaController, self).__init__(parent)
+
+        # --- Setup UI Elements --- #
+        self.verticalLayout = QtWidgets.QVBoxLayout(self)  # primary widget layout
+
+        self.checkBox_TriggerNew = QtWidgets.QCheckBox("Trigger New", self)
+
+        self.label_analyzerList = QtWidgets.QLabel("Select Analyzer", self)
+        self.comboBox_analyzer = QtWidgets.QComboBox(self)
+        self.hlay_analyzerList = QtWidgets.QHBoxLayout()
+        self.hlay_analyzerList.addWidget(self.label_analyzerList)
+        self.hlay_analyzerList.addWidget(self.comboBox_analyzer)
+
+        self.label_visaString = QtWidgets.QLabel("Visa String", self)
+        self.lineEdit_visaString = QtWidgets.QLineEdit(self)
+
+        self.hlay_row1 = QtWidgets.QHBoxLayout()
+        self.hlay_row1.addWidget(self.checkBox_TriggerNew)
+        self.hlay_row1.addLayout(self.hlay_analyzerList)
+        self.hlay_row1.addWidget(self.label_visaString)
+        self.hlay_row1.addWidget(self.lineEdit_visaString)
+
+        self.label_startFreq = QtWidgets.QLabel("Start Freq:", self)
+        self.lineEdit_startFrequency = QtWidgets.QLineEdit(self)
+        self.lineEdit_startFrequency.setValidator(QtGui.QDoubleValidator())
+        self.lineEdit_startFrequency.setText("{:g}".format(0.01))
+        self.lineEdit_startFrequency.setSizePolicy(QtWidgets.QSizePolicy(1, 0))  # H-Minimum, V-Fixed
+
+        self.label_stopFreq = QtWidgets.QLabel("Stop Freq:", self)
+        self.lineEdit_stopFrequency = QtWidgets.QLineEdit(self)
+        self.lineEdit_stopFrequency.setValidator(QtGui.QDoubleValidator())
+        self.lineEdit_stopFrequency.setText("{:g}".format(40.0))
+        self.lineEdit_stopFrequency.setSizePolicy(QtWidgets.QSizePolicy(1, 0))  # H-Minimum, V-Fixed
+
+        self.label_numberOfPoints = QtWidgets.QLabel("Num Points:", self)
+        self.spinBox_numberOfPoints = QtWidgets.QSpinBox(self)
+        self.spinBox_numberOfPoints.setMinimum(1)
+        self.spinBox_numberOfPoints.setMaximum(100000)
+        self.spinBox_numberOfPoints.setSingleStep(100)
+        self.spinBox_numberOfPoints.setValue(401)
+
+        self.label_funit = QtWidgets.QLabel("Units:", self)
+        self.comboBox_funit = QtWidgets.QComboBox(self)
+        self.comboBox_funit.addItems(self.FUNITS)
+        self.comboBox_funit.setCurrentIndex(self.comboBox_funit.findText("GHz"))
+
+        self.btn_setAnalyzerFreqSweep = QtWidgets.QPushButton("Set Analyzer\nFreq. Sweep", self)
+        self.btn_setAnalyzerFreqSweep.setSizePolicy(
+            QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Ignored)
+
+        self.layout_row2 = QtWidgets.QGridLayout()
+
+        self.layout_row2 = QtWidgets.QHBoxLayout()
+        for label, widget in (
+                (self.label_startFreq, self.lineEdit_startFrequency),
+                (self.label_stopFreq, self.lineEdit_stopFrequency),
+                (self.label_numberOfPoints, self.spinBox_numberOfPoints),
+                (self.label_funit, self.comboBox_funit)
+        ):
+            label.setAlignment(QtCore.Qt.AlignRight)
+            self.layout_row2.addWidget(label)
+            self.layout_row2.addWidget(widget)
+        self.layout_row2.addWidget(self.btn_setAnalyzerFreqSweep)
+
+        self.verticalLayout.addLayout(self.hlay_row1)
+        self.verticalLayout.addLayout(self.layout_row2)
+
+        self.comboBox_analyzer.currentIndexChanged.connect(self.set_analyzer_default_address)
+        for key, val in analyzers.items():
+            self.comboBox_analyzer.addItem(key)
+        # --- End Setup UI Elements --- #
+
+        self._start_frequency = float(self.lineEdit_startFrequency.text())
+        self._stop_frequency = float(self.lineEdit_stopFrequency.text())
+        self.funit = self.comboBox_funit.currentText()
+        self.comboBox_funit.currentIndexChanged.connect(self.frequency_changed)
+        self.lineEdit_startFrequency.textEdited.connect(self.set_start_freequency)
+        self.lineEdit_stopFrequency.textEdited.connect(self.set_stop_freequency)
+
+    def set_start_freequency(self, value):
+        self._start_frequency = float(value)
+        self.lineEdit_startFrequency.setText("{:g}".format(self._start_frequency))
+    
+    def get_start_frequency(self):
+        return self._start_frequency
+    
+    start_frequency = property(get_start_frequency, set_start_freequency)
+
+    def set_stop_freequency(self, value):
+        self._stop_frequency = float(value)
+        self.lineEdit_stopFrequency.setText("{:g}".format(self._stop_frequency))
+    
+    def get_stop_frequency(self):
+        return self._stop_frequency
+    
+    stop_frequency = property(get_stop_frequency, set_stop_freequency)
+
+    def frequency_changed(self):
+        conversion = self.FCONVERSIONS[self.comboBox_funit.currentText()] / self.FCONVERSIONS[self.funit]
+        self.funit = self.comboBox_funit.currentText()
+        self.start_frequency *= conversion
+        self.stop_frequency *= conversion
+
+    def set_analyzer_default_address(self):
+        self.lineEdit_visaString.setText(analyzers[self.comboBox_analyzer.currentText()].DEFAULT_VISA_ADDRESS)
+
+    def get_analyzer(self):
+        return analyzers[self.comboBox_analyzer.currentText()](self.lineEdit_visaString.text())
 
 
 class ReflectDialog(QtWidgets.QDialog):
@@ -688,13 +815,13 @@ class ReflectDialog(QtWidgets.QDialog):
             self.ok.setEnabled(False)
 
     def evaluate(self):
-        if type(self.reflect_2port) is Network:
+        if type(self.reflect_2port) is skrf.Network:
             self.ready = True
             self.label_port1.setText("port1 - measured")
             self.label_port2.setText("port2 - measured")
         else:
-            if type(self.s11) is Network and type(self.s22) is Network:
-                self.reflect_2port = four_oneports_2_twoport(self.s11, self.s11, self.s22, self.s22)
+            if type(self.s11) is skrf.Network and type(self.s22) is skrf.Network:
+                self.reflect_2port = skrf.four_oneports_2_twoport(self.s11, self.s11, self.s22, self.s22)
                 self.reflect_2port.s[:, 0, 1] = 0
                 self.reflect_2port.s[:, 1, 0] = 0
                 self.ready = True
@@ -702,25 +829,11 @@ class ReflectDialog(QtWidgets.QDialog):
                 self.label_port2.setText("port2 - measured")
             else:
                 self.ready = False
-                if type(self.s11) is Network:
+                if type(self.s11) is skrf.Network:
                     self.label_port1.setText("port1 - measured")
                 else:
                     self.label_port1.setText("port1 - not measured")
-                if type(self.s22) is Network:
+                if type(self.s22) is skrf.Network:
                     self.label_port2.setText("port2 - measured")
                 else:
                     self.label_port2.setText("port2 - not measured")
-
-
-def load_network_file(caption="load network file", filter="touchstone file (*.s2p)"):
-    fname = qt.getOpenFileName_Global(caption, filter)
-    if not fname:
-        return None
-
-    try:
-        ntwk = Network(fname)
-    except Exception as e:
-        qt.error_popup(e)
-        return None
-
-    return ntwk
