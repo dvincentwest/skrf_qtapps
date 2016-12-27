@@ -8,6 +8,7 @@ import pyqtgraph as pg
 import skrf
 
 from . import qt
+from . import smith_chart
 from .analyzers import analyzers
 
 
@@ -282,14 +283,14 @@ class NetworkListWidget(QtWidgets.QListWidget):
 class NetworkPlotWidget(QtWidgets.QWidget):
     # TODO: add option here to accomodate A, Y and Z
     S_VALS = OrderedDict((
-        ("decibels", "s_db"),
-        ("magnitude", "s_mag"),
-        ("phase (deg)", "s_deg"),
-        ("phase unwrapped (deg)", "s_deg_unwrap"),
-        ("phase (rad)", "s_rad"),
-        ("phase unwrapped (rad)", "s_rad_unwrap"),
-        ("real", "s_re"),
-        ("imaginary", "s_im"),
+        ("decibels", "db"),
+        ("magnitude", "mag"),
+        ("phase (deg)", "deg"),
+        ("phase unwrapped (deg)", "deg_unwrap"),
+        ("phase (rad)", "rad"),
+        ("phase unwrapped (rad)", "rad_unwrap"),
+        ("real", "re"),
+        ("imaginary", "im"),
     ))
     S_UNITS = S_VALS.keys()
 
@@ -298,27 +299,33 @@ class NetworkPlotWidget(QtWidgets.QWidget):
 
         self.checkBox_useCorrected = QtWidgets.QCheckBox(self)
         self.checkBox_useCorrected.setText("Plot Corrected")
-        self.checkBox_useCorrected.clicked.connect(self.plot_ntwk)
+
+        self.comboBox_primarySelector = QtWidgets.QComboBox(self)
+        self.comboBox_primarySelector.addItems(("S", "Z", "Y", "A", "Smith Chart"))
 
         self.comboBox_unitsSelector = QtWidgets.QComboBox(self)
         self.comboBox_unitsSelector.addItems(self.S_UNITS)
-        self.comboBox_unitsSelector.currentIndexChanged.connect(self.plot_ntwk)
 
         self.comboBox_traceSelector = QtWidgets.QComboBox(self)
         self.set_trace_items()
         self.comboBox_traceSelector.setCurrentIndex(0)
-        self.comboBox_traceSelector.currentIndexChanged.connect(self.plot_ntwk)
 
         self.plot_layout = pg.GraphicsLayoutWidget(self)
 
         self.horizontalLayout = QtWidgets.QHBoxLayout()
         self.horizontalLayout.addWidget(self.checkBox_useCorrected)
+        self.horizontalLayout.addWidget(self.comboBox_primarySelector)
         self.horizontalLayout.addWidget(self.comboBox_unitsSelector)
         self.horizontalLayout.addWidget(self.comboBox_traceSelector)
 
         self.verticalLayout = QtWidgets.QVBoxLayout(self)
         self.verticalLayout.addLayout(self.horizontalLayout)
         self.verticalLayout.addWidget(self.plot_layout)
+
+        self.checkBox_useCorrected.clicked.connect(self.update_plot)
+        self.comboBox_primarySelector.currentIndexChanged.connect(self.update_plot)
+        self.comboBox_unitsSelector.currentIndexChanged.connect(self.update_plot)
+        self.comboBox_traceSelector.currentIndexChanged.connect(self.update_plot)
         
         self.plot = self.plot_layout.addPlot()  # type: pg.PlotItem
 
@@ -330,6 +337,8 @@ class NetworkPlotWidget(QtWidgets.QWidget):
         self.plot.showGrid(True, True)
         self.plot.setLabel("bottom", "frequency", units="Hz")
 
+        self.last_plot = "rectangular"
+
     @property
     def ntwk(self): return self._ntwk
 
@@ -338,7 +347,7 @@ class NetworkPlotWidget(QtWidgets.QWidget):
         if ntwk is None or isinstance(ntwk, skrf.Network):
             self.set_trace_items(ntwk)
             self._ntwk = ntwk
-            self.plot_ntwk()
+            self.update_plot()
         elif type(ntwk) in (list, tuple):
             self.ntwk_list = ntwk
         else:
@@ -351,7 +360,7 @@ class NetworkPlotWidget(QtWidgets.QWidget):
     def ntwk_corrected(self, ntwk):
         if ntwk is None or isinstance(ntwk, skrf.Network):
             self._ntwk_corrected = ntwk
-            self.plot_ntwk()
+            self.update_plot()
         else:
             raise TypeError("must set to skrf.Network or None")
 
@@ -369,7 +378,7 @@ class NetworkPlotWidget(QtWidgets.QWidget):
                     raise TypeError("all items in list must be network objects")
             self._ntwk = self._ntwk_corrected = None
             self._ntwk_list = ntwk_list
-            self.plot_ntwk_list()
+            self.update_plot()
         else:
             raise TypeError("must provide a list of skrf.Network Objects")
 
@@ -389,10 +398,34 @@ class NetworkPlotWidget(QtWidgets.QWidget):
         else:
             raise TypeError("must set to skrf.Network or None")
 
-        self.plot_ntwk()
+        self.update_plot()
 
-    def reset_plot(self):
+    def reset_plot(self, smith=False):
         self.plot.clear()
+
+        if not smith and self.last_plot == "smith":
+            self.plot.setAspectLocked(False)
+            self.plot.autoRange()
+            self.plot.enableAutoRange()
+            self.plot.setLabel("bottom", "frequency", units="Hz")
+
+        if smith and not self.last_plot == "smith":
+            self.last_plot = "smith"
+            self.ZGrid = smith_chart.gen_z_grid()
+            self.s_unity_circle = smith_chart.gen_s_unity_circle()
+            self.plot_layout.removeItem(self.plot)
+            self.plot = self.plot_layout.addPlot()
+            self.plot.setAspectLocked()
+            self.plot.setXRange(-1, 1)
+            self.plot.setYRange(-1, 1)
+
+        if smith:
+            self.plot.addItem(self.s_unity_circle)
+            self.plot.addItem(self.ZGrid)
+
+        if not smith:
+            self.plot.setLabel("left", "")
+
         self.plot.setTitle(None)
         legend = self.plot.legend
         if legend is not None:
@@ -430,8 +463,17 @@ class NetworkPlotWidget(QtWidgets.QWidget):
             self.comboBox_traceSelector.setCurrentIndex(0)
         self.comboBox_traceSelector.blockSignals(False)
 
+    def update_plot(self):
+        if "smith" in self.comboBox_primarySelector.currentText().lower():
+            self.plot_smith()
+        else:
+            self.plot_ntwk()
+            self.last_plot = "rectangular"
+
     def plot_ntwk(self):
         self.reset_plot()
+        self.plot.showGrid(True, True)
+        self.plot.setLabel("bottom", "frequency", units="Hz")
 
         if self.checkBox_useCorrected.isChecked() and self._ntwk_corrected is not None:
             ntwk = self._ntwk_corrected
@@ -446,32 +488,107 @@ class NetworkPlotWidget(QtWidgets.QWidget):
         colors = trace_color_cycle(ntwk.s.shape[1] ** 2)
 
         trace = self.comboBox_traceSelector.currentIndex()
-        _n = _m = 0
+        n_ = m_ = 0
         if trace > 0:
             mn = trace - 1
             nports = int(sqrt(self.comboBox_traceSelector.count() - 1))
-            _m = mn % nports
-            _n = int((mn - mn % nports) / nports)
+            m_ = mn % nports
+            n_ = int((mn - mn % nports) / nports)
+
+        primary = self.comboBox_primarySelector.currentText().lower()
+        s_units = self.comboBox_unitsSelector.currentText()
+        attr = primary + "_" + self.S_VALS[s_units]
+        s = getattr(ntwk, attr)
+        for n in range(ntwk.s.shape[2]):
+            for m in range(ntwk.s.shape[1]):
+                c = next(colors)
+
+                if trace > 0:
+                    if not n == n_ or not m == m_:
+                        continue
+
+                label = "S{:d}{:d}".format(m + 1, n + 1)
+
+                self.plot.plot(ntwk.f, s[:, m, n], pen=pg.mkPen(c), name=label)
+        self.plot.setLabel("left", s_units)
+        self.plot.setTitle(ntwk.name)
+
+    def plot_smith(self):
+        self.reset_plot(True)
+
+        if self.checkBox_useCorrected.isChecked() and self._ntwk_corrected is not None:
+            ntwk = self._ntwk_corrected
+        else:
+            ntwk = self._ntwk
+
+        if ntwk is None:
+            if self.ntwk_list is not None:
+                self.plot_smith_list()
+            return
+
+        colors = trace_color_cycle(ntwk.s.shape[1] ** 2)
+
+        trace = self.comboBox_traceSelector.currentIndex()
+        n_ = m_ = 0
+        if trace > 0:
+            mn = trace - 1
+            nports = int(sqrt(self.comboBox_traceSelector.count() - 1))
+            m_ = mn % nports
+            n_ = int((mn - mn % nports) / nports)
 
         for n in range(ntwk.s.shape[2]):
             for m in range(ntwk.s.shape[1]):
                 c = next(colors)
 
                 if trace > 0:
-                    if not n == _n or not m == _m:
+                    if not n == n_ or not m == m_:
                         continue
 
                 label = "S{:d}{:d}".format(m + 1, n + 1)
 
-                s_units = self.comboBox_unitsSelector.currentText()
-
-                s = getattr(ntwk, self.S_VALS[s_units])[:, m, n]
-                self.plot.plot(ntwk.f, s, pen=pg.mkPen(c), name=label)
-                self.plot.setLabel("left", s_units)
+                s = ntwk.s[:, m, n]
+                self.plot.plot(s.real, s.imag, pen=pg.mkPen(c), name=label)
         self.plot.setTitle(ntwk.name)
 
     def plot_ntwk_list(self):
         self.reset_plot()
+
+        if self.ntwk_list is None:
+            return
+
+        colors = trace_color_cycle()
+
+        trace = self.comboBox_traceSelector.currentIndex()
+        n_ = m_ = 0
+        if trace > 0:
+            mn = trace - 1
+            nports = int(sqrt(self.comboBox_traceSelector.count() - 1))
+            m_ = mn % nports
+            n_ = int((mn - mn % nports) / nports)
+
+        primary = self.comboBox_primarySelector.currentText().lower()
+        s_units = self.comboBox_unitsSelector.currentText()
+        attr = primary + "_" + self.S_VALS[s_units]
+
+        for ntwk in self.ntwk_list:
+            s = getattr(ntwk, attr)
+            for n in range(ntwk.s.shape[2]):
+                for m in range(ntwk.s.shape[1]):
+                    c = next(colors)
+
+                    if trace > 0:
+                        if not n == n_ or not m == m_:
+                            continue
+
+                    label = ntwk.name
+                    if ntwk.s.shape[1] > 1:
+                        label += " - S{:d}{:d}".format(m + 1, n + 1)
+
+                    self.plot.plot(ntwk.f, s[:, m, n], pen=pg.mkPen(c), name=label)
+        self.plot.setLabel("left", s_units)
+
+    def plot_smith_list(self):
+        self.reset_plot(True)
 
         if self.ntwk_list is None:
             return
@@ -499,11 +616,8 @@ class NetworkPlotWidget(QtWidgets.QWidget):
                     if ntwk.s.shape[1] > 1:
                         label += " - S{:d}{:d}".format(m + 1, n + 1)
 
-                    s_units = self.comboBox_unitsSelector.currentText()
-
-                    s = getattr(ntwk, self.S_VALS[s_units])[:, m, n]
-                    self.plot.plot(ntwk.f, s, pen=pg.mkPen(c), name=label)
-                    self.plot.setLabel("left", s_units)
+                    s = ntwk.s[:, m, n]
+                    self.plot.plot(s.real, s.imag, pen=pg.mkPen(c), name=label)
 
 
 class SwitchTermsDialog(QtWidgets.QDialog):
@@ -650,11 +764,7 @@ class VnaController(QtWidgets.QWidget):
         self.comboBox_funit.addItems(self.FUNITS)
         self.comboBox_funit.setCurrentIndex(self.comboBox_funit.findText("GHz"))
 
-        self.btn_setAnalyzerFreqSweep = QtWidgets.QPushButton("Set Analyzer\nFreq. Sweep", self)
-        self.btn_setAnalyzerFreqSweep.setSizePolicy(
-            QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Ignored)
-
-        self.layout_row2 = QtWidgets.QGridLayout()
+        self.btn_setAnalyzerFreqSweep = QtWidgets.QPushButton("Set Freq. Sweep", self)
 
         self.layout_row2 = QtWidgets.QHBoxLayout()
         for label, widget in (
@@ -667,6 +777,7 @@ class VnaController(QtWidgets.QWidget):
             self.layout_row2.addWidget(label)
             self.layout_row2.addWidget(widget)
         self.layout_row2.addWidget(self.btn_setAnalyzerFreqSweep)
+        self.layout_row2.insertStretch(-1)
 
         self.verticalLayout.addLayout(self.hlay_row1)
         self.verticalLayout.addLayout(self.layout_row2)

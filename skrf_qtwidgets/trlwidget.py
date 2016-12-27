@@ -15,7 +15,7 @@ class TRLWidget(QtWidgets.QWidget):
         super(TRLWidget, self).__init__(parent)
 
         # --- Setup UI --- #
-        self.resize(900, 600)
+        self.resize(825, 575)
         self.verticalLayout_main = QtWidgets.QVBoxLayout(self)
 
         self.vna_controller = widgets.VnaController()
@@ -124,6 +124,8 @@ class TRLWidget(QtWidgets.QWidget):
 
         self.layoutWidget = QtWidgets.QWidget(self.splitter)
         self.verticalLayout_plotArea = QtWidgets.QVBoxLayout(self.layoutWidget)
+        self.splitter.setContentsMargins(0, 0, 0, 0)
+        self.layoutWidget.setContentsMargins(0, 0, 0, 0)
         self.verticalLayout_plotArea.setContentsMargins(0, 0, 0, 0)
         self.verticalLayout_main.addWidget(self.splitter)
 
@@ -140,6 +142,7 @@ class TRLWidget(QtWidgets.QWidget):
         self.currentItem = None
 
         self.ntwk_plot = widgets.NetworkPlotWidget()
+        self.ntwk_plot.verticalLayout.setContentsMargins(0, 0, 0, 0)
         self.verticalLayout_plotArea.addWidget(self.ntwk_plot)
 
         for _list in (self.listWidget_thru, self.listWidget_line,
