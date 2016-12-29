@@ -4,7 +4,7 @@ import sip
 from qtpy import QtWidgets
 
 from skrf_qtwidgets import qt
-# qt.reconcile_with_matplotlib()  # needed for skrf which initialized matplotlib by default
+# qt.reconcile_with_matplotlib()  # needed for skrf which initializes matplotlib by default
 
 from skrf_qtwidgets import widgets
 

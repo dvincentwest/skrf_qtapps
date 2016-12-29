@@ -23,11 +23,11 @@ class TRLWidget(QtWidgets.QWidget):
         self.verticalLayout_main.addWidget(self.vna_controller)
 
         self.splitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal, self)
-        self.splitter.setContentsMargins(3, 3, 3, 3)
 
         self.tabWidget = QtWidgets.QTabWidget(self.splitter)
         self.tab_calStandards = QtWidgets.QWidget()
         self.tab_calStandards_layout = QtWidgets.QVBoxLayout(self.tab_calStandards)
+        self.tab_calStandards_layout.setContentsMargins(6, 6, 6, 6)
 
         self.label_thru = QtWidgets.QLabel("Thru", self.tab_calStandards)
         self.btn_measureThru = QtWidgets.QPushButton("Measure", self.tab_calStandards)
@@ -85,6 +85,7 @@ class TRLWidget(QtWidgets.QWidget):
 
         self.tab_measurements = QtWidgets.QWidget()
         self.tab_measurements_layout = QtWidgets.QVBoxLayout(self.tab_measurements)
+        self.tab_measurements_layout.setContentsMargins(6, 6, 6, 6)
 
         self.btn_measureMeasurement = QtWidgets.QPushButton("Measure", self.tab_measurements)
         self.btn_loadMeasurement = QtWidgets.QPushButton("Load", self.tab_measurements)

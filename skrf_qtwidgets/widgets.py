@@ -1,8 +1,10 @@
 from collections import OrderedDict
 import os.path
+import weakref
 import re
 from math import sqrt
 
+import numpy as np
 from qtpy import QtWidgets, QtCore, QtGui
 import pyqtgraph as pg
 import skrf
@@ -311,6 +313,7 @@ class NetworkPlotWidget(QtWidgets.QWidget):
         self.comboBox_traceSelector.setCurrentIndex(0)
 
         self.plot_layout = pg.GraphicsLayoutWidget(self)
+        self.plot_layout.sceneObj.sigMouseClicked.connect(self.graph_clicked)
 
         self.horizontalLayout = QtWidgets.QHBoxLayout()
         self.horizontalLayout.addWidget(self.checkBox_useCorrected)
@@ -318,9 +321,12 @@ class NetworkPlotWidget(QtWidgets.QWidget):
         self.horizontalLayout.addWidget(self.comboBox_unitsSelector)
         self.horizontalLayout.addWidget(self.comboBox_traceSelector)
 
+        self.data_info_label = QtWidgets.QLabel("Click a data point to see info")
+
         self.verticalLayout = QtWidgets.QVBoxLayout(self)
         self.verticalLayout.addLayout(self.horizontalLayout)
         self.verticalLayout.addWidget(self.plot_layout)
+        self.verticalLayout.addWidget(self.data_info_label)
 
         self.checkBox_useCorrected.clicked.connect(self.update_plot)
         self.comboBox_primarySelector.currentIndexChanged.connect(self.update_plot)
@@ -463,6 +469,33 @@ class NetworkPlotWidget(QtWidgets.QWidget):
             self.comboBox_traceSelector.setCurrentIndex(0)
         self.comboBox_traceSelector.blockSignals(False)
 
+    def graph_clicked(self, ev):
+        """
+        :type ev: pg.GraphicsScene.mouseEvents.MouseClickEvent
+        :return:
+        """
+        xy = self.plot.vb.mapSceneToView(ev.scenePos())
+        if not ev.isAccepted():
+            if "smith" in self.comboBox_primarySelector.currentText().lower():
+                S11 = xy.x() + 1j * xy.y()
+                Z = (1 + S11) / (1 - S11)
+                self.data_info_label.setText(
+                    "Sre: {:g}, Sim: {:g}  -  R: {:g}, X: {:g}".format(xy.x(), xy.y(), Z.real, Z.imag))
+            else:
+                self.data_info_label.setText("x: {:g}, y: {:g}".format(xy.x(), xy.y()))
+        else:
+            # assume that the plotCurveItem accepted the event
+            curve = ev.acceptedItem  # type: pg.PlotCurveItem
+            spoint = xy.x() + 1j * xy.y()
+            sdata = curve.xData + 1j * curve.yData
+            index = np.argmin(np.abs(sdata - spoint))
+            frequency = curve.ntwk.frequency.f_scaled[index]
+            S11 = curve.xData[index] + 1j * curve.yData[index]
+            Z = (1 + S11) / (1 - S11)
+            self.data_info_label.setText(
+                "Freq: {:g} ({:s}), Sre: {:g}, Sim: {:g}  -  R: {:g}, X: {:g}".format(
+                    frequency, curve.ntwk.frequency.unit, S11.real, S11.imag, Z.real, Z.imag))
+
     def update_plot(self):
         if "smith" in self.comboBox_primarySelector.currentText().lower():
             self.plot_smith()
@@ -547,7 +580,9 @@ class NetworkPlotWidget(QtWidgets.QWidget):
                 label = "S{:d}{:d}".format(m + 1, n + 1)
 
                 s = ntwk.s[:, m, n]
-                self.plot.plot(s.real, s.imag, pen=pg.mkPen(c), name=label)
+                curve = self.plot.plot(s.real, s.imag, pen=pg.mkPen(c), name=label)
+                curve.curve.setClickable(True)
+                curve.curve.ntwk = ntwk
         self.plot.setTitle(ntwk.name)
 
     def plot_ntwk_list(self):
@@ -617,7 +652,7 @@ class NetworkPlotWidget(QtWidgets.QWidget):
                         label += " - S{:d}{:d}".format(m + 1, n + 1)
 
                     s = ntwk.s[:, m, n]
-                    self.plot.plot(s.real, s.imag, pen=pg.mkPen(c), name=label)
+                    curve = self.plot.plot(s.real, s.imag, pen=pg.mkPen(c), name=label)
 
 
 class SwitchTermsDialog(QtWidgets.QDialog):
