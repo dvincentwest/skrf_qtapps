@@ -8,11 +8,11 @@ from qtpy import QtCore, QtWidgets
 from . import cfg
 
 
-def _excepthook(type, value, tback):
+def excepthook_(type, value, tback):
     """overrides the default exception hook so that errors will print the error to the command line
     rather than just exiting with code 1 and no other explanation"""
     sys.__excepthook__(type, value, tback)
-sys.excepthook = _excepthook
+sys.excepthook = excepthook_
 
 
 def popup_excepthook(type, value, tback):
@@ -78,6 +78,7 @@ def warnMissingFeature():
     QtWidgets.QMessageBox.warning(None, "Feature Missing", msg, QtWidgets.QMessageBox.Ok)
 
 
+# TODO: make the following dialogs function the same for PySide, PyQt4, PyQt5, and Possibly PySide2
 def getOpenFileName_Global(caption, filter, start_path=None, **kwargs):
     if start_path is None:
         start_path = cfg.last_path

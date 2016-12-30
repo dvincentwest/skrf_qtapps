@@ -36,7 +36,7 @@ def trace_color_cycle(n=1000):
 
     lime_green = "#00FF00"
     cyan = "#00FFFF"
-    magenta = "FF00FF"
+    magenta = "#FF00FF"
     yellow = "#FFFF00"
 
     count = 0
@@ -200,15 +200,34 @@ class NetworkListWidget(QtWidgets.QListWidget):
     item_updated = QtCore.Signal(object)
     save_single_requested = QtCore.Signal(object, str)
 
-    def __init__(self, parent=None):
+    def __init__(self, ntwk_plot=None, name_prefix='meas', parent=None):
         super(NetworkListWidget, self).__init__(parent)
+        self.name_prefix = name_prefix
         self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
-        self.customContextMenuRequested.connect(self.listItemRightClicked)
+
+        self.customContextMenuRequested.connect(self.list_item_right_clicked)
         self.save_single_requested.connect(save_NetworkListItem)
         self.itemDelegate().commitData.connect(self.item_text_updated)
+        self.itemClicked.connect(self.set_active_network)
+        self.item_updated.connect(self.set_active_network)
 
-    def get_unique_name(self, name, exclude_item=-1):
+        self._ntwk_plot = None
+
+    @property
+    def ntwk_plot(self):
+        return self._ntwk_plot
+
+    @ntwk_plot.setter
+    def ntwk_plot(self, ntwk_plot):
+        if isinstance(ntwk_plot, NetworkPlotWidget):
+            self._ntwk_plot = ntwk_plot
+            self.item_removed.connect(self._ntwk_plot.clear_plot)
+        else:
+            self._ntwk_plot = None
+            self.item_removed.disconnect()
+
+    def get_unique_name(self, name=None, exclude_item=-1):
         """
         :type name: str
         :type exclude_item: int
@@ -242,7 +261,7 @@ class NetworkListWidget(QtWidgets.QListWidget):
         item.update_ntwk_names()
         self.item_updated.emit(item)
 
-    def listItemRightClicked(self, position):
+    def list_item_right_clicked(self, position):
         menu = QtWidgets.QMenu()
 
         if len(self.selectedItems()) == 1:
@@ -271,15 +290,68 @@ class NetworkListWidget(QtWidgets.QListWidget):
         the default will be to save both, and this method must be replaced by the parent infrastructure
         for a different result
 
-        :return: int
+        :return: str
         """
         return "both"
+
+    def set_active_network(self, item):
+        """
+        :type item: NetworkListItem
+        :return:
+        """
+        if item is None:
+            return
+
+        if self.ntwk_plot:
+            if type(item.ntwk) in (list, tuple):
+                self.ntwk_plot.ntwk_list = item.ntwk
+            else:
+                self.ntwk_plot.set_networks(item.ntwk, item.ntwk_calibrated)
+
+    def load_network(self, ntwk):
+        item = NetworkListItem()
+        item.setFlags(item.flags() | QtCore.Qt.ItemIsEditable)
+        item.setText(ntwk.name)
+        item.ntwk = ntwk
+        self.addItem(item)
+        self.setCurrentItem(item)
+        self.item_text_updated()
+        self.set_active_network(item)
+
+    def load_from_file(self, caption="load touchstone ntwk file"):
+        # sender = self.sender()  # QtWidgets.QPushButton
+        ntwk = load_network_file(caption)  # type: skrf.Network
+        if not ntwk:
+            return
+        self.load_network(ntwk)
 
     def save_single_item(self):
         items = self.selectedItems()
         if len(items) > 0:
             item = items[0]
             self.save_single_requested.emit(item, self.get_save_which_mode())
+
+    def save_all_measurements(self):
+        save_which = self.get_save_which_mode()
+        ntwk_list = []
+
+        for i in range(self.count()):
+            item = self.item(i)
+            if save_which != "cal" and isinstance(item.ntwk, skrf.Network):
+                ntwk_list.append(item.ntwk)
+            if save_which != "raw" and isinstance(item.ntwk_calibrated, skrf.Network):
+                ntwk_list.append(item.ntwk_calibrated)
+
+        save_multiple_networks(ntwk_list)
+
+    def get_analyzer(self):
+        raise AttributeError("Must set get_analyzer method externally")
+
+    def measure_ntwk(self):
+        with self.get_analyzer() as nwa:
+            meas = nwa.measure_twoport_ntwk()
+            meas.name = self.get_unique_name()
+        self.load_network(meas)
 
 
 class NetworkPlotWidget(QtWidgets.QWidget):
@@ -324,6 +396,7 @@ class NetworkPlotWidget(QtWidgets.QWidget):
         self.data_info_label = QtWidgets.QLabel("Click a data point to see info")
 
         self.verticalLayout = QtWidgets.QVBoxLayout(self)
+        self.verticalLayout.setContentsMargins(0, 0, 0, 0)  # normally this will be embedded in another application
         self.verticalLayout.addLayout(self.horizontalLayout)
         self.verticalLayout.addWidget(self.plot_layout)
         self.verticalLayout.addWidget(self.data_info_label)
@@ -483,7 +556,7 @@ class NetworkPlotWidget(QtWidgets.QWidget):
                     "Sre: {:g}, Sim: {:g}  -  R: {:g}, X: {:g}".format(xy.x(), xy.y(), Z.real, Z.imag))
             else:
                 self.data_info_label.setText("x: {:g}, y: {:g}".format(xy.x(), xy.y()))
-        else:
+        elif isinstance(ev.acceptedItem, pg.PlotCurveItem):
             # assume that the plotCurveItem accepted the event
             curve = ev.acceptedItem  # type: pg.PlotCurveItem
             spoint = xy.x() + 1j * xy.y()
@@ -547,7 +620,7 @@ class NetworkPlotWidget(QtWidgets.QWidget):
         self.plot.setTitle(ntwk.name)
 
     def plot_smith(self):
-        self.reset_plot(True)
+        self.reset_plot(smith=True)
 
         if self.checkBox_useCorrected.isChecked() and self._ntwk_corrected is not None:
             ntwk = self._ntwk_corrected
@@ -757,6 +830,7 @@ class VnaController(QtWidgets.QWidget):
 
         # --- Setup UI Elements --- #
         self.verticalLayout = QtWidgets.QVBoxLayout(self)  # primary widget layout
+        self.verticalLayout.setContentsMargins(0, 0, 0, 0)  # normally this will be embedded in another application
 
         self.checkBox_TriggerNew = QtWidgets.QCheckBox("Trigger New", self)
 
@@ -808,7 +882,7 @@ class VnaController(QtWidgets.QWidget):
                 (self.label_numberOfPoints, self.spinBox_numberOfPoints),
                 (self.label_funit, self.comboBox_funit)
         ):
-            label.setAlignment(QtCore.Qt.AlignRight)
+            label.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignCenter)
             self.layout_row2.addWidget(label)
             self.layout_row2.addWidget(widget)
         self.layout_row2.addWidget(self.btn_setAnalyzerFreqSweep)
