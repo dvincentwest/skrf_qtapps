@@ -7,6 +7,11 @@ from qtpy import QtCore, QtWidgets
 
 from . import cfg
 
+if os.environ['QT_API'] in ("pyqt", "pyqt4"):
+    QtWidgets.QFileDialog.getOpenFileName = QtWidgets.QFileDialog.getOpenFileNameAndFilter
+    QtWidgets.QFileDialog.getOpenFileNames = QtWidgets.QFileDialog.getOpenFileNamesAndFilter
+    QtWidgets.QFileDialog.getSaveFileName = QtWidgets.QFileDialog.getSaveFileNameAndFilter
+
 
 def excepthook_(type, value, tback):
     """overrides the default exception hook so that errors will print the error to the command line
@@ -16,7 +21,7 @@ sys.excepthook = excepthook_
 
 
 def popup_excepthook(type, value, tback):
-    WarningMsgBox(traceback.format_exception(type, value, tback), "Uncaught Exception").exec()
+    WarningMsgBox(traceback.format_exception(type, value, tback), "Uncaught Exception").exec_()
 
 
 def set_popup_exceptions():
@@ -70,7 +75,7 @@ def error_popup(error):
     if not type(error) is str:
         etype, value, tb = sys.exc_info()
         error = "\n".join(traceback.format_exception(etype, value, tb))
-    WarningMsgBox(error).exec()
+    WarningMsgBox(error).exec_()
 
 
 def warnMissingFeature():
@@ -103,7 +108,7 @@ def getOpenFileNames_Global(caption, filter, start_path=None, **kwargs):
 def getSaveFileName_Global(caption, filter, start_path=None, **kwargs):
     if start_path is None:
         start_path = cfg.last_path
-    fname = str(QtWidgets.QFileDialog.getSaveFileName(None, caption, start_path, filter, **kwargs)[0])
+        fname = str(QtWidgets.QFileDialog.getSaveFileName(None, caption, start_path, filter, **kwargs)[0])
     if fname in ("", None):
         return ""
     cfg.last_path = os.path.dirname(fname)

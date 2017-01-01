@@ -1,6 +1,5 @@
 from collections import OrderedDict
 import os.path
-import weakref
 import re
 from math import sqrt
 
@@ -287,12 +286,12 @@ class NetworkListWidget(QtWidgets.QListWidget):
         because the item will potentially have a raw and calibrated network attached we need
         to determine if we want to save
         "raw", "cal", or "both"
-        the default will be to save both, and this method must be replaced by the parent infrastructure
+        the default will be to save raw, and this method must be replaced by the parent infrastructure
         for a different result
 
         :return: str
         """
-        return "both"
+        return "raw"
 
     def set_active_network(self, item):
         """
@@ -319,12 +318,12 @@ class NetworkListWidget(QtWidgets.QListWidget):
         self.set_active_network(item)
 
     def load_from_file(self, caption="load touchstone ntwk file"):
-        # sender = self.sender()  # QtWidgets.QPushButton
         ntwk = load_network_file(caption)  # type: skrf.Network
         if not ntwk:
             return
         self.load_network(ntwk)
 
+    # TODO: implement save selected for multiple selections
     def save_single_item(self):
         items = self.selectedItems()
         if len(items) > 0:
@@ -353,6 +352,46 @@ class NetworkListWidget(QtWidgets.QListWidget):
             meas.name = self.get_unique_name()
         self.load_network(meas)
 
+    def get_load_button(self, label="Load"):
+        button = QtWidgets.QPushButton(label)
+        button.released.connect(self.load_from_file)
+        return button
+
+    def get_measure_button(self, label="Measure"):
+        button = QtWidgets.QPushButton(label)
+        button.released.connect(self.measure_ntwk)
+        return button
+
+    def get_save_selected_button(self, label="Save Selected"):
+        button = QtWidgets.QPushButton(label)
+        button.clicked.connect(self.save_single_item)
+        return button
+
+    def get_save_all_button(self, label="Save All"):
+        button = QtWidgets.QPushButton(label)
+        button.clicked.connect(self.save_all_measurements)
+        return button
+
+    def get_input_buttons(self, labels=("Load", "Measure")):
+        widget = QtWidgets.QWidget()
+        horizontal_layout = QtWidgets.QHBoxLayout(widget)
+        horizontal_layout.setContentsMargins(0, 2, 0, 2)
+        load_button = self.get_load_button(labels[0])
+        measurement_button = self.get_measure_button(labels[1])
+        horizontal_layout.addWidget(load_button)
+        horizontal_layout.addWidget(measurement_button)
+        return widget
+
+    def get_save_buttons(self, labels=("Save Selected", "Save All")):
+        widget = QtWidgets.QWidget()
+        horizontal_layout = QtWidgets.QHBoxLayout(widget)
+        horizontal_layout.setContentsMargins(0, 2, 0, 2)
+        save_selected_button = self.get_save_selected_button(labels[0])
+        save_all_button = self.get_save_all_button(labels[1])
+        horizontal_layout.addWidget(save_selected_button)
+        horizontal_layout.addWidget(save_all_button)
+        return widget
+
 
 class NetworkPlotWidget(QtWidgets.QWidget):
     # TODO: add option here to accomodate A, Y and Z
@@ -371,7 +410,7 @@ class NetworkPlotWidget(QtWidgets.QWidget):
     def __init__(self, parent=None):
         super(NetworkPlotWidget, self).__init__(parent)
 
-        self.checkBox_useCorrected = QtWidgets.QCheckBox(self)
+        self.checkBox_useCorrected = QtWidgets.QCheckBox()
         self.checkBox_useCorrected.setText("Plot Corrected")
 
         self.comboBox_primarySelector = QtWidgets.QComboBox(self)
@@ -396,7 +435,7 @@ class NetworkPlotWidget(QtWidgets.QWidget):
         self.data_info_label = QtWidgets.QLabel("Click a data point to see info")
 
         self.verticalLayout = QtWidgets.QVBoxLayout(self)
-        self.verticalLayout.setContentsMargins(0, 0, 0, 0)  # normally this will be embedded in another application
+        self.verticalLayout.setContentsMargins(3, 3, 3, 3)  # normally this will be embedded in another application
         self.verticalLayout.addLayout(self.horizontalLayout)
         self.verticalLayout.addWidget(self.plot_layout)
         self.verticalLayout.addWidget(self.data_info_label)
@@ -557,7 +596,6 @@ class NetworkPlotWidget(QtWidgets.QWidget):
             else:
                 self.data_info_label.setText("x: {:g}, y: {:g}".format(xy.x(), xy.y()))
         elif isinstance(ev.acceptedItem, pg.PlotCurveItem):
-            # assume that the plotCurveItem accepted the event
             curve = ev.acceptedItem  # type: pg.PlotCurveItem
             spoint = xy.x() + 1j * xy.y()
             sdata = curve.xData + 1j * curve.yData

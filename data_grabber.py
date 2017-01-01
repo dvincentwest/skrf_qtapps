@@ -1,6 +1,7 @@
 import sys
 
 import sip
+from PyQt4 import QtCore
 from qtpy import QtWidgets, QtCore
 
 from skrf_qtwidgets import qt, widgets
@@ -28,38 +29,23 @@ class DataGrabber(QtWidgets.QWidget):
         self.measurements_widget_layout = QtWidgets.QVBoxLayout(self.measurements_widget)
         self.measurements_widget_layout.setContentsMargins(0, 0, 0, 0)
 
-        self.btn_measureMeasurement = QtWidgets.QPushButton("Measure", self.measurements_widget)
-        self.btn_loadMeasurement = QtWidgets.QPushButton("Load", self.measurements_widget)
-        self.hlay_measurementButtons = QtWidgets.QHBoxLayout()
-        self.hlay_measurementButtons.addWidget(self.btn_loadMeasurement)
-        self.hlay_measurementButtons.addWidget(self.btn_measureMeasurement)
-        self.measurements_widget_layout.addLayout(self.hlay_measurementButtons)
-
         self.listWidget_measurements = widgets.NetworkListWidget(self.measurements_widget)
+        self.measurement_buttons = self.listWidget_measurements.get_input_buttons()
+        self.measurements_widget_layout.addWidget(self.measurement_buttons)
         self.measurements_widget_layout.addWidget(self.listWidget_measurements)
 
-        self.btn_saveSelectedMeasurements = QtWidgets.QPushButton("Save Selected")
-        self.btn_saveAllMeasurements = QtWidgets.QPushButton("Save All")
-        self.hlay_saveMeasurementButtons = QtWidgets.QHBoxLayout()
-        self.hlay_saveMeasurementButtons.addWidget(self.btn_saveSelectedMeasurements)
-        self.hlay_saveMeasurementButtons.addWidget(self.btn_saveAllMeasurements)
-        self.measurements_widget_layout.addLayout(self.hlay_saveMeasurementButtons)
+        self.save_buttons = self.listWidget_measurements.get_save_buttons()
+        self.measurements_widget_layout.addWidget(self.save_buttons)
 
         self.ntwk_plot = widgets.NetworkPlotWidget(self.splitter)
-        self.ntwk_plot.horizontalLayout.removeWidget(self.ntwk_plot.checkBox_useCorrected)
+        self.ntwk_plot.checkBox_useCorrected.setEnabled(False)
 
         self.verticalLayout_main.addWidget(self.splitter)
         self.splitter.setStretchFactor(1, 100)  # important that this goes at the end
         # --- END SETUP UI --- #
 
-        self.listWidget_measurements.get_save_which_mode = lambda: "raw"
         self.listWidget_measurements.ntwk_plot = self.ntwk_plot
         self.listWidget_measurements.get_analyzer = self.vna_controller.get_analyzer
-
-        self.btn_loadMeasurement.released.connect(self.listWidget_measurements.load_from_file)
-        self.btn_measureMeasurement.clicked.connect(self.listWidget_measurements.measure_ntwk)
-        self.btn_saveSelectedMeasurements.clicked.connect(self.listWidget_measurements.save_single_item)
-        self.btn_saveAllMeasurements.clicked.connect(self.listWidget_measurements.save_all_measurements)
 
 app = QtWidgets.QApplication(sys.argv)
 
