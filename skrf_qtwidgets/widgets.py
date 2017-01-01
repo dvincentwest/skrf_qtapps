@@ -13,7 +13,7 @@ from . import smith_chart
 from .analyzers import analyzers
 
 
-def load_network_file(caption="load network file", filter="touchstone file (*.s2p)"):
+def load_network_file(caption="load network file", filter="touchstone file (*.s*p)"):
     fname = qt.getOpenFileName_Global(caption, filter)
     if not fname:
         return None
@@ -891,13 +891,13 @@ class VnaController(QtWidgets.QWidget):
         self.lineEdit_startFrequency = QtWidgets.QLineEdit(self)
         self.lineEdit_startFrequency.setValidator(QtGui.QDoubleValidator())
         self.lineEdit_startFrequency.setText("{:g}".format(0.01))
-        self.lineEdit_startFrequency.setSizePolicy(QtWidgets.QSizePolicy(1, 0))  # H-Minimum, V-Fixed
+        self.lineEdit_startFrequency.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Fixed)
 
         self.label_stopFreq = QtWidgets.QLabel("Stop Freq:", self)
         self.lineEdit_stopFrequency = QtWidgets.QLineEdit(self)
         self.lineEdit_stopFrequency.setValidator(QtGui.QDoubleValidator())
         self.lineEdit_stopFrequency.setText("{:g}".format(40.0))
-        self.lineEdit_stopFrequency.setSizePolicy(QtWidgets.QSizePolicy(1, 0))  # H-Minimum, V-Fixed
+        self.lineEdit_stopFrequency.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Fixed)
 
         self.label_numberOfPoints = QtWidgets.QLabel("Num Points:", self)
         self.spinBox_numberOfPoints = QtWidgets.QSpinBox(self)

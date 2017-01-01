@@ -3,9 +3,18 @@ from __future__ import print_function
 import os
 import sys
 import traceback
+import platform
+
+from . import cfg  # must import cfg before qtpy to parse qt-bindings
 from qtpy import QtCore, QtWidgets
 
-from . import cfg
+if platform.system() != "Windows" and os.environ["QT_API"] == "pyqt5":
+    linux_styles = ['Fusion', 'Plastique', 'Cleanlooks', 'Motif', 'CDE']
+    if "QT_STYLE_OVERRIDE" in os.environ.keys():
+        os.environ.pop("QT_STYLE_OVERRIDE")
+        for style in linux_styles:
+            if style in QtWidgets.QStyleFactory.keys():
+                QtWidgets.QApplication.setStyle(style)
 
 if os.environ['QT_API'] in ("pyqt", "pyqt4"):
     QtWidgets.QFileDialog.getOpenFileName = QtWidgets.QFileDialog.getOpenFileNameAndFilter

@@ -1,10 +1,9 @@
 import sys
 
 import sip
-from PyQt4 import QtCore
+from skrf_qtwidgets import qt, widgets
 from qtpy import QtWidgets, QtCore
 
-from skrf_qtwidgets import qt, widgets
 # qt.reconcile_with_matplotlib()  # needed for skrf versions that intialize matplotlib by default
 
 
