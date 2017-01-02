@@ -47,9 +47,10 @@ class DataGrabber(QtWidgets.QWidget):
         self.listWidget_measurements.get_analyzer = self.vna_controller.get_analyzer
 
 app = QtWidgets.QApplication(sys.argv)
+qt.setup_style()
+qt.set_popup_exceptions()
 
 form = DataGrabber()
-qt.set_popup_exceptions()
 form.show()
 
 sip.setdestroyonexit(False)  # prevent a crash on exit

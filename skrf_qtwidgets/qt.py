@@ -8,13 +8,30 @@ import platform
 from . import cfg  # must import cfg before qtpy to parse qt-bindings
 from qtpy import QtCore, QtWidgets
 
-if platform.system() != "Windows" and os.environ["QT_API"] == "pyqt5":
-    linux_styles = ['Fusion', 'Plastique', 'Cleanlooks', 'Motif', 'CDE']
+
+def setup_style(style=cfg.preferred_style):
+    available_styles = QtWidgets.QStyleFactory.keys()
+
     if "QT_STYLE_OVERRIDE" in os.environ.keys():
         os.environ.pop("QT_STYLE_OVERRIDE")
-        for style in linux_styles:
-            if style in QtWidgets.QStyleFactory.keys():
-                QtWidgets.QApplication.setStyle(style)
+
+    if style:
+        if style in available_styles:
+            QtWidgets.QApplication.setStyle(style)
+        else:
+            for s in cfg.preferred_styles:
+                if s in available_styles:
+                    QtWidgets.QApplication.setStyle(s)
+
+    elif platform.system() != "Windows" and os.environ["QT_API"] == "pyqt5":
+        if len(available_styles) == 2:
+            # available styles are Windows, and Fusion
+            # qt5-style-plugins are not installed, take action:
+            for s in cfg.preferred_styles:
+                if s in available_styles:
+                    QtWidgets.QApplication.setStyle(s)
+
+
 
 if os.environ['QT_API'] in ("pyqt", "pyqt4"):
     QtWidgets.QFileDialog.getOpenFileName = QtWidgets.QFileDialog.getOpenFileNameAndFilter

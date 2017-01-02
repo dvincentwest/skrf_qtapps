@@ -16,3 +16,6 @@ path_default = last_path
 if len(sys.argv) > 1:
     if sys.argv[1].lower() in ("pyqt4", "pyqt", "pyside", "pyqt5"):
         os.environ["QT_API"] = sys.argv[1].lower()
+
+preferred_styles = ['Plastique', 'Fusion', 'Cleanlooks', 'Motif', 'CDE']
+preferred_style = 'Fusion'
