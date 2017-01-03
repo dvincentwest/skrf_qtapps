@@ -4,8 +4,6 @@ import sip
 from skrf_qtwidgets import qt, widgets
 from qtpy import QtWidgets, QtCore
 
-# qt.reconcile_with_matplotlib()  # needed for skrf versions that intialize matplotlib by default
-
 
 class DataGrabber(QtWidgets.QWidget):
     def __init__(self, parent=None):

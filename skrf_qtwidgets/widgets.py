@@ -27,6 +27,20 @@ def load_network_file(caption="load network file", filter="touchstone file (*.s*
     return ntwk
 
 
+def load_network_files(caption="load network file", filter="touchstone file (*.s*p)"):
+    fname = qt.getOpenFileNames_Global(caption, filter)
+    if not fname:
+        return None
+
+    try:
+        ntwk = skrf.Network(fname)
+    except Exception as e:
+        qt.error_popup(e)
+        return None
+
+    return ntwk
+
+
 def trace_color_cycle(n=1000):
     """
     :type n: int
@@ -603,7 +617,7 @@ class NetworkPlotWidget(QtWidgets.QWidget):
             S11 = curve.xData[index] + 1j * curve.yData[index]
             Z = (1 + S11) / (1 - S11)
             self.data_info_label.setText(
-                "Freq: {:g} ({:s}), Sre: {:g}, Sim: {:g}  -  R: {:g}, X: {:g}".format(
+                "Freq: {:g} ({:s}), S(re): {:g}, S(im): {:g}  -  R: {:g}, X: {:g}".format(
                     frequency, curve.ntwk.frequency.unit, S11.real, S11.imag, Z.real, Z.imag))
 
     def update_plot(self):
