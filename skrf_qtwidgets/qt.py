@@ -6,16 +6,17 @@ import traceback
 import platform
 
 from . import cfg  # must import cfg before qtpy to parse qt-bindings
+
+os.environ['QT_API'] = 'pyqt5'  # force prefer pyqt5, let qtpy handle pyqt4 or pyside only
 from qtpy import QtCore, QtWidgets
 
 
 def setup_style(style=cfg.preferred_style):
     available_styles = QtWidgets.QStyleFactory.keys()
-
-    if "QT_STYLE_OVERRIDE" in os.environ.keys():
-        os.environ.pop("QT_STYLE_OVERRIDE")
-
     if style:
+        if "QT_STYLE_OVERRIDE" in os.environ.keys():
+            os.environ.pop("QT_STYLE_OVERRIDE")
+
         if style in available_styles:
             QtWidgets.QApplication.setStyle(style)
         else:
@@ -24,13 +25,14 @@ def setup_style(style=cfg.preferred_style):
                     QtWidgets.QApplication.setStyle(s)
 
     elif platform.system() != "Windows" and os.environ["QT_API"] == "pyqt5":
+        if "QT_STYLE_OVERRIDE" in os.environ.keys():
+            os.environ.pop("QT_STYLE_OVERRIDE")
         if len(available_styles) == 2:
             # available styles are Windows, and Fusion
             # qt5-style-plugins are not installed, take action:
             for s in cfg.preferred_styles:
                 if s in available_styles:
                     QtWidgets.QApplication.setStyle(s)
-
 
 
 if os.environ['QT_API'] in ("pyqt", "pyqt4"):
@@ -54,7 +56,7 @@ def set_popup_exceptions():
     sys.excepthook = popup_excepthook
 
 
-# currently necessary because skrf imports pylab, if plotting were not initilized by default, we could remove this
+# possibly necessary if the application needs matplotlib, as did previous verisons of skrf
 def reconcile_with_matplotlib():
     try:
         import matplotlib

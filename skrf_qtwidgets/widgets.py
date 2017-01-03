@@ -394,7 +394,6 @@ class NetworkListWidget(QtWidgets.QListWidget):
 
 
 class NetworkPlotWidget(QtWidgets.QWidget):
-    # TODO: add option here to accomodate A, Y and Z
     S_VALS = OrderedDict((
         ("decibels", "db"),
         ("magnitude", "mag"),
@@ -405,7 +404,7 @@ class NetworkPlotWidget(QtWidgets.QWidget):
         ("real", "re"),
         ("imaginary", "im"),
     ))
-    S_UNITS = S_VALS.keys()
+    S_UNITS = list(S_VALS.keys())
 
     def __init__(self, parent=None):
         super(NetworkPlotWidget, self).__init__(parent)
