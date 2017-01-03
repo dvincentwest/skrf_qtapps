@@ -56,7 +56,7 @@ def set_popup_exceptions():
     sys.excepthook = popup_excepthook
 
 
-# possibly necessary if the application needs matplotlib, as did previous verisons of skrf
+# possibly necessary if the application needs matplotlib, as did previous versions of skrf
 def reconcile_with_matplotlib():
     try:
         import matplotlib
