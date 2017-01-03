@@ -1,3 +1,5 @@
+import sys
+import traceback
 from collections import OrderedDict
 import os.path
 import re
@@ -28,17 +30,24 @@ def load_network_file(caption="load network file", filter="touchstone file (*.s*
 
 
 def load_network_files(caption="load network file", filter="touchstone file (*.s*p)"):
-    fname = qt.getOpenFileNames_Global(caption, filter)
-    if not fname:
+    fnames = qt.getOpenFileNames_Global(caption, filter)
+    if not fnames:
         return None
 
-    try:
-        ntwk = skrf.Network(fname)
-    except Exception as e:
-        qt.error_popup(e)
-        return None
+    ntwks = []
+    errors = []
 
-    return ntwk
+    for fname in fnames:
+        try:
+            ntwks.append(skrf.Network(fname))
+        except Exception as e:
+            etype, value, tb = sys.exc_info()
+            errors.append(fname + ": " + traceback.format_exception_only(etype, value))
+
+    if errors:
+        qt.error_popup(errors)
+
+    return ntwks
 
 
 def trace_color_cycle(n=1000):
@@ -332,10 +341,12 @@ class NetworkListWidget(QtWidgets.QListWidget):
         self.set_active_network(item)
 
     def load_from_file(self, caption="load touchstone ntwk file"):
-        ntwk = load_network_file(caption)  # type: skrf.Network
-        if not ntwk:
+        ntwks = load_network_files(caption)  # type: skrf.Network
+        if not ntwks:
             return
-        self.load_network(ntwk)
+
+        for ntwk in ntwks:
+            self.load_network(ntwk)
 
     # TODO: implement save selected for multiple selections
     def save_single_item(self):
