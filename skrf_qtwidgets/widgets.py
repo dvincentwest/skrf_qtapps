@@ -394,9 +394,14 @@ class NetworkListWidget(QtWidgets.QListWidget):
     # TODO: implement save selected for multiple selections
     def save_single_item(self):
         items = self.selectedItems()
-        if len(items) > 0:
+        if len(items) == 1:
             item = items[0]
             self.save_single_requested.emit(item, self.get_save_which_mode())
+        elif len(items) > 1:
+            ntwk_list = []
+            for item in items:
+                ntwk_list.append(item.ntwk)
+            save_multiple_networks(ntwk_list)
 
     def save_all_measurements(self):
         save_which = self.get_save_which_mode()
