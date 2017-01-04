@@ -1,14 +1,16 @@
 from __future__ import print_function
 
 import os
+import time
 import sys
 import traceback
 import platform
 
-from . import cfg  # must import cfg before qtpy to parse qt-bindings
+import sip
 
+from . import cfg  # must import cfg before qtpy to parse qt-bindings
 os.environ['QT_API'] = 'pyqt5'  # force prefer pyqt5, let qtpy handle pyqt4 or pyside only
-from qtpy import QtCore, QtWidgets
+from qtpy import QtCore, QtWidgets, QtGui
 
 
 def setup_style(style=cfg.preferred_style):
@@ -136,7 +138,7 @@ def getOpenFileNames_Global(caption, filter, start_path=None, **kwargs):
 def getSaveFileName_Global(caption, filter, start_path=None, **kwargs):
     if start_path is None:
         start_path = cfg.last_path
-        fname = str(QtWidgets.QFileDialog.getSaveFileName(None, caption, start_path, filter, **kwargs)[0])
+    fname = str(QtWidgets.QFileDialog.getSaveFileName(None, caption, start_path, filter, **kwargs)[0])
     if fname in ("", None):
         return ""
     cfg.last_path = os.path.dirname(fname)
@@ -151,6 +153,55 @@ def getDirName_Global(caption=None, start_path=None, **kwargs):
         return ""
     cfg.last_path = dirname
     return dirname
+
+
+def center_widget(widget):
+    widget.move(QtWidgets.QApplication.desktop().screen().rect().center() - widget.rect().center())
+
+
+def get_skrf_icon():
+    icon_image = os.path.join(cfg.images_dir, "scikit-rf-logo.png")
+    return QtGui.QIcon(icon_image)
+
+
+def get_splash_screen():
+    splash_image = os.path.join(cfg.images_dir, "powered_by_scikit-rf.png")
+    splash_pix = QtGui.QPixmap(splash_image)
+    splash = QtWidgets.QSplashScreen(splash_pix, QtCore.Qt.WindowStaysOnTopHint)
+    splash.setMask(splash_pix.mask())
+    splash.show()
+
+    return splash, time.time()
+
+
+def close_splash_screen(widget, splash, start_time):
+    center_widget(widget)
+    # make sure something bad doesn't happen
+    if time.time() - start_time < 0:
+        start_time = time.time()
+
+    min_splash_time = 1
+    while time.time() - start_time < min_splash_time:
+        QtWidgets.QApplication.instance().processEvents()
+    splash.finish(widget)
+
+
+def single_widget_application(widget_class):
+    app = QtWidgets.QApplication(sys.argv)
+
+    setup_style()
+    set_popup_exceptions()
+
+    splash, start_time = get_splash_screen()
+
+    form = widget_class()
+    form.setWindowIcon(get_skrf_icon())
+    form.show()
+
+    close_splash_screen(form, splash, start_time)
+
+    sip.setdestroyonexit(False)  # prevent a crash on exit
+    sys.exit(app.exec_())
 
 
 if __name__ == "main":

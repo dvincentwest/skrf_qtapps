@@ -1,8 +1,8 @@
 import sys
+import os
 import traceback
-from collections import OrderedDict
-import os.path
 import re
+from collections import OrderedDict
 from math import sqrt
 
 import numpy as np
@@ -40,7 +40,7 @@ def load_network_files(caption="load network file", filter="touchstone file (*.s
     for fname in fnames:
         try:
             ntwks.append(skrf.Network(fname))
-        except Exception as e:
+        except Exception:
             etype, value, tb = sys.exc_info()
             errors.append(fname + ": " + traceback.format_exception_only(etype, value))
 
@@ -60,9 +60,13 @@ def trace_color_cycle(n=1000):
     cyan = "#00FFFF"
     magenta = "#FF00FF"
     yellow = "#FFFF00"
+    pink = "#C04040"
+    blue = "#0000FF"
+    lavendar = "#FF40FF"
+    turquoise = "#00FFFF"
 
     count = 0
-    colors = [yellow, cyan, magenta, lime_green]
+    colors = [yellow, cyan, magenta, lime_green, pink, blue, lavendar, turquoise]
     num = len(colors)
     while count < n:
         yield colors[count % num]
@@ -226,12 +230,13 @@ class NetworkListWidget(QtWidgets.QListWidget):
         super(NetworkListWidget, self).__init__(parent)
         self.name_prefix = name_prefix
         self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
-        self.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
+        self.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
 
         self.customContextMenuRequested.connect(self.list_item_right_clicked)
         self.save_single_requested.connect(save_NetworkListItem)
         self.itemDelegate().commitData.connect(self.item_text_updated)
-        self.itemClicked.connect(self.set_active_network)
+        self.itemSelectionChanged.connect(self.set_active_networks)
+        # self.itemClicked.connect(self.set_active_network)
         self.item_updated.connect(self.set_active_network)
 
         self._ntwk_plot = None
@@ -294,15 +299,24 @@ class NetworkListWidget(QtWidgets.QListWidget):
             remove = QtWidgets.QAction("Remove Item", self)
             menu.addAction(remove)
             remove.triggered.connect(self.remove_item)
+        elif len(self.selectedItems()) > 1:
+            save = QtWidgets.QAction("Save Items", self)
+            menu.addAction(save)
+            save.triggered.connect(self.save_single_item)
+
+            remove = QtWidgets.QAction("Remove Items", self)
+            menu.addAction(remove)
+            remove.triggered.connect(self.remove_item)
+
 
         menu.exec_(self.mapToGlobal(position))  # QtWidgets.QAction
 
     def remove_item(self):
         items = self.selectedItems()
         if len(items) > 0:
-            item = items[0]
             self.item_removed.emit()
-            self.takeItem(self.row(item))
+            for item in items:
+                self.takeItem(self.row(item))
 
     def get_save_which_mode(self):
         """
@@ -315,6 +329,20 @@ class NetworkListWidget(QtWidgets.QListWidget):
         :return: str
         """
         return "raw"
+
+    def set_active_networks(self):
+        items = self.selectedItems()
+        ntwk_list = []
+
+        for item in items:
+            ntwk_list.append(item.ntwk)
+
+        if len(ntwk_list) > 1:
+            self.ntwk_plot.ntwk_list = ntwk_list
+        elif len(ntwk_list) == 1:
+            self.ntwk_plot.ntwk = ntwk_list[0]
+        else:
+            return
 
     def set_active_network(self, item):
         """
@@ -330,23 +358,38 @@ class NetworkListWidget(QtWidgets.QListWidget):
             else:
                 self.ntwk_plot.set_networks(item.ntwk, item.ntwk_calibrated)
 
-    def load_network(self, ntwk):
+    def load_network(self, ntwk, activate=True):
         item = NetworkListItem()
         item.setFlags(item.flags() | QtCore.Qt.ItemIsEditable)
         item.setText(ntwk.name)
         item.ntwk = ntwk
         self.addItem(item)
+        self.clearSelection()
         self.setCurrentItem(item)
         self.item_text_updated()
-        self.set_active_network(item)
+        if activate is True:
+            self.set_active_network(item)
 
-    def load_from_file(self, caption="load touchstone ntwk file"):
+    def load_from_file(self, caption="load touchstone file"):
+        ntwk = load_network_file(caption)  # type: skrf.Network
+        if not ntwk:
+            return
+        self.load_network(ntwk)
+
+    def load_from_files(self, caption="load touchstone file"):
         ntwks = load_network_files(caption)  # type: skrf.Network
         if not ntwks:
             return
 
-        for ntwk in ntwks:
-            self.load_network(ntwk)
+        try:
+            self.blockSignals(False)
+            for ntwk in ntwks:
+                self.load_network(ntwk, False)
+        finally:
+            self.blockSignals(False)
+
+        item = self.item(self.count() - 1)
+        self.set_active_network(item)
 
     # TODO: implement save selected for multiple selections
     def save_single_item(self):
@@ -379,7 +422,7 @@ class NetworkListWidget(QtWidgets.QListWidget):
 
     def get_load_button(self, label="Load"):
         button = QtWidgets.QPushButton(label)
-        button.released.connect(self.load_from_file)
+        button.released.connect(self.load_from_files)
         return button
 
     def get_measure_button(self, label="Measure"):
@@ -788,6 +831,8 @@ class NetworkPlotWidget(QtWidgets.QWidget):
 
                     s = ntwk.s[:, m, n]
                     curve = self.plot.plot(s.real, s.imag, pen=pg.mkPen(c), name=label)
+                    curve.curve.setClickable(True)
+                    curve.curve.ntwk = ntwk
 
 
 class SwitchTermsDialog(QtWidgets.QDialog):
@@ -884,8 +929,8 @@ class SwitchTermsDialog(QtWidgets.QDialog):
 
 
 class VnaController(QtWidgets.QWidget):
-    FUNITS = ["Hz", "kHz", "MHz", "GHz", "PHz"]
-    FCONVERSIONS = {"Hz": 1., "kHz": 1e-3, "MHz": 1e-6, "GHz": 1e-9, "PHz": 1e-12}
+    FUNITS = ["Hz", "kHz", "MHz", "GHz", "THz", "PHz"]
+    FCONVERSIONS = {"Hz": 1., "kHz": 1e-3, "MHz": 1e-6, "GHz": 1e-9, "THz": 1e-12, "PHz": 1e-15}
 
     def __init__(self, parent=None):
         super(VnaController, self).__init__(parent)
