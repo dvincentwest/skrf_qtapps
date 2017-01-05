@@ -182,8 +182,8 @@ class TRLWidget(QtWidgets.QWidget):
             item = self.listWidget_measurements.item(i)
             if save_which != "cal" and isinstance(item.ntwk, skrf.Network):
                 ntwk_list.append(item.ntwk)
-            if save_which != "raw" and isinstance(item.ntwk_calibrated, skrf.Network):
-                ntwk_list.append(item.ntwk_calibrated)
+            if save_which != "raw" and isinstance(item.ntwk_corrected, skrf.Network):
+                ntwk_list.append(item.ntwk_corrected)
 
         widgets.save_multiple_networks(ntwk_list)
 
@@ -239,7 +239,7 @@ class TRLWidget(QtWidgets.QWidget):
         if type(item.ntwk) in (list, tuple):
             self.ntwk_plot.ntwk_list = item.ntwk
         else:
-            self.ntwk_plot.set_networks(item.ntwk, item.ntwk_calibrated)
+            self.ntwk_plot.set_networks(item.ntwk, item.ntwk_corrected)
 
     def thru_list_item_deleted(self):
         item = self.listWidget_thru.selectedItems()[0]
@@ -395,8 +395,8 @@ class TRLWidget(QtWidgets.QWidget):
             self.calibration = skrf.calibration.TRL(measured, n_reflects=n_reflects, switch_terms=switch_terms)
             for i in range(self.listWidget_measurements.count()):
                 item = self.listWidget_measurements.item(i)  # type: NetworkListItem
-                item.ntwk_calibrated = self.calibration.apply_cal(item.ntwk)
-                item.ntwk_calibrated.name = item.ntwk.name + "-cal"
+                item.ntwk_corrected = self.calibration.apply_cal(item.ntwk)
+                item.ntwk_corrected.name = item.ntwk.name + "-cal"
         except Exception as e:
             qt.error_popup(e)
 

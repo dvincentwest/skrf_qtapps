@@ -18,6 +18,7 @@ class Analyzer(object):
     '''
     DEFAULT_VISA_ADDRESS = "GPIB0::16::INSTR"
     NAME = "Two Port Analyzer"
+    NPORTS = 2
 
     def __init__(self, visa_address):
         self.resource = None
@@ -41,7 +42,7 @@ class Analyzer(object):
         """
         self.resource.close()
 
-    def measure_twoport_ntwk(self, ports=(1, 2), sweep=True):
+    def measure_twoport_ntwk(self, ports=(1, 2), channel=None, sweep=False):
         """
         :param ports: an interable of the ports to measure
         :param sweep: whether or not to trigger a fresh measurement
@@ -49,7 +50,7 @@ class Analyzer(object):
         """
         pass
 
-    def measure_oneport_ntwk(self, port=1, sweep=True):
+    def measure_oneport_ntwk(self, port=1, channel=None, sweep=False):
         """
         :param ports: which port to measure
         :param sweep: whether or not to trigger a fresh measurement
@@ -57,10 +58,22 @@ class Analyzer(object):
         """
         pass
 
-    def measure_switch_terms(self, ports=(1, 2), sweep=True):
+    def measure_switch_terms(self, ports=(1, 2), channel=None, sweep=False):
         """
         :param ports: an interable of the ports to measure
         :param sweep: whether or not to trigger a fresh measurement
         :return: a lenth-2 iterable of 1-port networks
         """
+        pass
+
+    def measure_traces(self, traces=[], channel=None, sweep=False):
+        pass
+
+    def get_list_of_traces(self, channel=None):
+        pass
+
+    def get_frequency_sweep(self, channel=None):
+        pass
+
+    def set_frequency_sweep(self, start_freq, stop_freq, num_points, channel=None):
         pass

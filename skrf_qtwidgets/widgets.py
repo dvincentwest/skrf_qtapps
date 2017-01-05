@@ -119,7 +119,7 @@ def save_NetworkListItem(ntwk_list_item, save_which):
         raise ValueError("Must set save option to 'raw', 'cal', or 'both'")
 
     ntwk = ntwk_list_item.ntwk
-    ntwk_c = ntwk_list_item.ntwk_calibrated
+    ntwk_c = ntwk_list_item.ntwk_corrected
 
     if type(ntwk) in (list, tuple):
         save_multiple_networks(ntwk)
@@ -150,11 +150,11 @@ def save_NetworkListItem(ntwk_list_item, save_which):
             save_which = "raw"
 
     if save_which.lower() == "cal":
-        if ntwk_list_item.ntwk_calibrated is None:
-            Warning("ntwk_calibrated is None, saving raw instead")
+        if ntwk_list_item.ntwk_corrected is None:
+            Warning("ntwk_corrected is None, saving raw instead")
             save_which = "raw"
         else:
-            ntwk = ntwk_list_item.ntwk_calibrated
+            ntwk = ntwk_list_item.ntwk_corrected
             filename = os.path.join(qt.cfg.last_path, ntwk.name + extension)
 
     caption = "Save skrf.Network File" if save_which.lower() == "raw" else "Save Calibrated skrf.Network File"
@@ -211,13 +211,13 @@ class NetworkListItem(QtWidgets.QListWidgetItem):
     def __init__(self, parent=None):
         super(NetworkListItem, self).__init__(parent)
         self.ntwk = None
-        self.ntwk_calibrated = None
+        self.ntwk_corrected = None
 
     def update_ntwk_names(self):
         if isinstance(self.ntwk, skrf.Network):
             self.ntwk.name = self.text()
-        if isinstance(self.ntwk_calibrated, skrf.Network):
-            self.ntwk_calibrated.name = self.text() + "-cal"
+        if isinstance(self.ntwk_corrected, skrf.Network):
+            self.ntwk_corrected.name = self.text() + "-cal"
 
 
 class NetworkListWidget(QtWidgets.QListWidget):
@@ -236,14 +236,14 @@ class NetworkListWidget(QtWidgets.QListWidget):
         self.save_single_requested.connect(save_NetworkListItem)
         self.itemDelegate().commitData.connect(self.item_text_updated)
         self.itemSelectionChanged.connect(self.set_active_networks)
-        # self.itemClicked.connect(self.set_active_network)
         self.item_updated.connect(self.set_active_network)
 
         self._ntwk_plot = None
+        self.named_items = {}
 
     @property
     def ntwk_plot(self):
-        return self._ntwk_plot
+        return self._ntwk_plot  # type: NetworkPlotWidget
 
     @ntwk_plot.setter
     def ntwk_plot(self, ntwk_plot):
@@ -282,11 +282,12 @@ class NetworkListWidget(QtWidgets.QListWidget):
                     break
         return name
 
-    def item_text_updated(self):
+    def item_text_updated(self, emit=True):
         item = self.currentItem()  # type: NetworkListItem
         item.setText(self.get_unique_name(item.text(), self.row(item)))
         item.update_ntwk_names()
-        self.item_updated.emit(item)
+        if emit:
+            self.item_updated.emit(item)
 
     def list_item_right_clicked(self, position):
         menu = QtWidgets.QMenu()
@@ -307,7 +308,6 @@ class NetworkListWidget(QtWidgets.QListWidget):
             remove = QtWidgets.QAction("Remove Items", self)
             menu.addAction(remove)
             remove.triggered.connect(self.remove_item)
-
 
         menu.exec_(self.mapToGlobal(position))  # QtWidgets.QAction
 
@@ -331,18 +331,35 @@ class NetworkListWidget(QtWidgets.QListWidget):
         return "raw"
 
     def set_active_networks(self):
-        items = self.selectedItems()
+        if not self.ntwk_plot:
+            return
+
+        items = self.selectedItems()        
         ntwk_list = []
+        ntwk_list_corrected = []
 
         for item in items:
-            ntwk_list.append(item.ntwk)
-
-        if len(ntwk_list) > 1:
-            self.ntwk_plot.ntwk_list = ntwk_list
-        elif len(ntwk_list) == 1:
-            self.ntwk_plot.ntwk = ntwk_list[0]
+            if isinstance(item.ntwk, skrf.Network):
+                ntwk_list.append(item.ntwk)
+            elif type(item.ntwk) in (list, tuple):
+                ntwk_list.extend(item.ntwk)
+                
+            if isinstance(item.ntwk_corrected, skrf.Network):
+                ntwk_list_corrected.append(item.ntwk_corrected)
+            elif type(item.ntwk_corrected) in (list, tuple):
+                ntwk_list_corrected.extend(item.ntwk_corrected)
+        
+        if ntwk_list:
+            ntwk = ntwk_list if len(ntwk_list) > 1 else ntwk_list[0]
         else:
-            return
+            ntwk = None
+
+        if ntwk_list_corrected:
+            ntwk_corrected = ntwk_list_corrected if len(ntwk_list_corrected ) > 1 else ntwk_list_corrected[0]
+        else:
+            ntwk_corrected = None
+
+        self.ntwk_plot.set_networks(ntwk, ntwk_corrected)
 
     def set_active_network(self, item):
         """
@@ -353,10 +370,24 @@ class NetworkListWidget(QtWidgets.QListWidget):
             return
 
         if self.ntwk_plot:
-            if type(item.ntwk) in (list, tuple):
-                self.ntwk_plot.ntwk_list = item.ntwk
-            else:
-                self.ntwk_plot.set_networks(item.ntwk, item.ntwk_calibrated)
+            self.ntwk_plot.set_networks(item.ntwk, item.ntwk_corrected)
+
+    def load_named_ntwk(self, ntwk, name, activate=True):
+        item = self.findItems(name, Qt_MatchFlags=QtCore.Qt.MatchExactly)
+        if item is None:
+            item = NetworkListItem()
+            self.addItem(item)
+        item.setFlags(item.flags() | QtCore.Qt.NoItemFlags)
+        item.setText(name)
+        item.ntwk = ntwk
+        self.clearSelection()
+        self.setCurrentItem(item)
+        if activate is True:
+            self.set_active_network(item)
+
+    def get_named_item(self, name):
+        item = self.findItems(name, Qt_MatchFlags=QtCore.Qt.MatchExactly)
+        return item
 
     def load_network(self, ntwk, activate=True):
         item = NetworkListItem()
@@ -366,9 +397,7 @@ class NetworkListWidget(QtWidgets.QListWidget):
         self.addItem(item)
         self.clearSelection()
         self.setCurrentItem(item)
-        self.item_text_updated()
-        if activate is True:
-            self.set_active_network(item)
+        self.item_text_updated(emit=activate)
 
     def load_from_file(self, caption="load touchstone file"):
         ntwk = load_network_file(caption)  # type: skrf.Network
@@ -411,8 +440,8 @@ class NetworkListWidget(QtWidgets.QListWidget):
             item = self.item(i)
             if save_which != "cal" and isinstance(item.ntwk, skrf.Network):
                 ntwk_list.append(item.ntwk)
-            if save_which != "raw" and isinstance(item.ntwk_calibrated, skrf.Network):
-                ntwk_list.append(item.ntwk_calibrated)
+            if save_which != "raw" and isinstance(item.ntwk_corrected, skrf.Network):
+                ntwk_list.append(item.ntwk_corrected)
 
         save_multiple_networks(ntwk_list)
 
@@ -479,7 +508,7 @@ class NetworkPlotWidget(QtWidgets.QWidget):
     ))
     S_UNITS = list(S_VALS.keys())
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, **kwargs):
         super(NetworkPlotWidget, self).__init__(parent)
 
         self.checkBox_useCorrected = QtWidgets.QCheckBox()
@@ -512,7 +541,7 @@ class NetworkPlotWidget(QtWidgets.QWidget):
         self.verticalLayout.addWidget(self.plot_layout)
         self.verticalLayout.addWidget(self.data_info_label)
 
-        self.checkBox_useCorrected.clicked.connect(self.update_plot)
+        self.checkBox_useCorrected.stateChanged.connect(self.set_use_corrected)
         self.comboBox_primarySelector.currentIndexChanged.connect(self.update_plot)
         self.comboBox_unitsSelector.currentIndexChanged.connect(self.update_plot)
         self.comboBox_traceSelector.currentIndexChanged.connect(self.update_plot)
@@ -521,7 +550,9 @@ class NetworkPlotWidget(QtWidgets.QWidget):
 
         self._ntwk = None
         self._ntwk_corrected = None
-        self._ntwk_list = None
+        self._corrected_data_enabled = True
+        self._use_corrected = False
+        self.corrected_data_enabled = kwargs.get('corrected_data_enabled', True)
 
         self.plot.addLegend()
         self.plot.showGrid(True, True)
@@ -529,51 +560,58 @@ class NetworkPlotWidget(QtWidgets.QWidget):
 
         self.last_plot = "rectangular"
 
+    def get_use_corrected(self):
+        return self._use_corrected
+
+    def set_use_corrected(self, val):
+        if val is True:
+            self._use_corrected = True
+        else:
+            self._use_corrected = False
+        self.update_plot()
+
+    use_corrected = property(get_use_corrected, set_use_corrected)
+
     @property
     def ntwk(self): return self._ntwk
 
     @ntwk.setter
     def ntwk(self, ntwk):
-        if ntwk is None or isinstance(ntwk, skrf.Network):
+        if ntwk is None or isinstance(ntwk, skrf.Network) or type(ntwk) in (list, tuple):
             self.set_trace_items(ntwk)
             self._ntwk = ntwk
             self.update_plot()
-        elif type(ntwk) in (list, tuple):
-            self.ntwk_list = ntwk
         else:
-            raise TypeError("must set to skrf.Network or None")
+            raise TypeError("must set to skrf.Network, list of Networks, or None")
 
     @property
     def ntwk_corrected(self): return self._ntwk_corrected
 
     @ntwk_corrected.setter
     def ntwk_corrected(self, ntwk):
-        if ntwk is None or isinstance(ntwk, skrf.Network):
-            self._ntwk_corrected = ntwk
+        if ntwk is None or isinstance(ntwk, skrf.Network) or type(ntwk) in (list, tuple):
+            self.set_trace_items(ntwk)
+            self._ntwk_corrected = ntwk   
             self.update_plot()
         else:
-            raise TypeError("must set to skrf.Network or None")
+            raise TypeError("must set to skrf.Network, list of Networks, or None")
 
     @property
-    def ntwk_list(self): return self._ntwk_list
+    def corrected_data_enabled(self):
+        return self._corrected_data_enabled
 
-    @ntwk_list.setter
-    def ntwk_list(self, ntwk_list):
-        self.set_trace_items(ntwk_list)
-        if ntwk_list is None:
-            self._ntwk_list = ntwk_list
-        elif type(ntwk_list) in (list, tuple):
-            for ntwk in ntwk_list:
-                if not isinstance(ntwk, skrf.Network):
-                    raise TypeError("all items in list must be network objects")
-            self._ntwk = self._ntwk_corrected = None
-            self._ntwk_list = ntwk_list
-            self.update_plot()
+    @corrected_data_enabled.setter
+    def corrected_data_enabled(self, enabled):
+        if enabled is True:
+            self._corrected_data_enabled = True
+            self.checkBox_useCorrected.setEnabled(True)
         else:
-            raise TypeError("must provide a list of skrf.Network Objects")
+            self._corrected_data_enabled = False
+            self._use_corrected = False
+            self.checkBox_useCorrected.setEnabled(False)
 
     def set_networks(self, ntwk, ntwk_corrected=None):
-        if ntwk is None or isinstance(ntwk, skrf.Network):
+        if ntwk is None or isinstance(ntwk, skrf.Network) or type(ntwk) in (list, tuple):
             self._ntwk = ntwk
             self.set_trace_items(self._ntwk)
             if ntwk is None:
@@ -581,12 +619,12 @@ class NetworkPlotWidget(QtWidgets.QWidget):
                 self.set_trace_items(self._ntwk)
                 return
         else:
-            raise TypeError("must set to skrf.Network or None")
+            raise TypeError("must set to skrf.Network, list of Networks, or None")
 
-        if ntwk_corrected is None or isinstance(ntwk_corrected, skrf.Network):
+        if ntwk_corrected is None or isinstance(ntwk_corrected, skrf.Network) or type(ntwk_corrected) in (list, tuple):
             self._ntwk_corrected = ntwk_corrected
         else:
-            raise TypeError("must set to skrf.Network or None")
+            raise TypeError("must set to skrf.Network, list of Networks, or None")
 
         self.update_plot()
 
@@ -687,19 +725,20 @@ class NetworkPlotWidget(QtWidgets.QWidget):
             self.last_plot = "rectangular"
 
     def plot_ntwk(self):
+        if self.use_corrected and self.ntwk_corrected is not None:
+            ntwk = self.ntwk_corrected
+        else:
+            ntwk = self.ntwk
+
+        if ntwk is None:
+            return
+        elif type(ntwk) in (list, tuple):
+            self.plot_ntwk_list()
+            return
+
         self.reset_plot()
         self.plot.showGrid(True, True)
         self.plot.setLabel("bottom", "frequency", units="Hz")
-
-        if self.checkBox_useCorrected.isChecked() and self._ntwk_corrected is not None:
-            ntwk = self._ntwk_corrected
-        else:
-            ntwk = self._ntwk
-
-        if ntwk is None:
-            if self.ntwk_list is not None:
-                self.plot_ntwk_list()
-            return
 
         colors = trace_color_cycle(ntwk.s.shape[1] ** 2)
 
@@ -729,18 +768,60 @@ class NetworkPlotWidget(QtWidgets.QWidget):
         self.plot.setLabel("left", s_units)
         self.plot.setTitle(ntwk.name)
 
-    def plot_smith(self):
-        self.reset_plot(smith=True)
+    def plot_ntwk_list(self):
+        ntwk_list = self.ntwk
+        if ntwk_list is None:
+            return
 
-        if self.checkBox_useCorrected.isChecked() and self._ntwk_corrected is not None:
-            ntwk = self._ntwk_corrected
+        self.reset_plot()
+        self.plot.showGrid(True, True)
+        self.plot.setLabel("bottom", "frequency", units="Hz")
+
+        colors = trace_color_cycle()
+
+        trace = self.comboBox_traceSelector.currentIndex()
+        n_ = m_ = 0
+        if trace > 0:
+            mn = trace - 1
+            nports = int(sqrt(self.comboBox_traceSelector.count() - 1))
+            m_ = mn % nports
+            n_ = int((mn - mn % nports) / nports)
+
+        primary = self.comboBox_primarySelector.currentText().lower()
+        s_units = self.comboBox_unitsSelector.currentText()
+        attr = primary + "_" + self.S_VALS[s_units]
+
+        for ntwk in ntwk_list:
+            s = getattr(ntwk, attr)
+            for n in range(ntwk.s.shape[2]):
+                for m in range(ntwk.s.shape[1]):
+                    c = next(colors)
+
+                    if trace > 0:
+                        if not n == n_ or not m == m_:
+                            continue
+
+                    label = ntwk.name
+                    if ntwk.s.shape[1] > 1:
+                        label += " - S{:d}{:d}".format(m + 1, n + 1)
+
+                    self.plot.plot(ntwk.f, s[:, m, n], pen=pg.mkPen(c), name=label)
+        self.plot.setLabel("left", s_units)
+
+    def plot_smith(self):
+        if self.use_corrected and self.ntwk_corrected is not None:
+            ntwk = self.ntwk_corrected
         else:
-            ntwk = self._ntwk
+            ntwk = self.ntwk
 
         if ntwk is None:
-            if self.ntwk_list is not None:
-                self.plot_smith_list()
+            self.reset_plot(smith=True)
             return
+        elif type(ntwk) in (list, tuple):
+            self.plot_smith_list()
+            return
+
+        self.reset_plot(smith=True)
 
         colors = trace_color_cycle(ntwk.s.shape[1] ** 2)
 
@@ -768,47 +849,11 @@ class NetworkPlotWidget(QtWidgets.QWidget):
                 curve.curve.ntwk = ntwk
         self.plot.setTitle(ntwk.name)
 
-    def plot_ntwk_list(self):
-        self.reset_plot()
-
-        if self.ntwk_list is None:
-            return
-
-        colors = trace_color_cycle()
-
-        trace = self.comboBox_traceSelector.currentIndex()
-        n_ = m_ = 0
-        if trace > 0:
-            mn = trace - 1
-            nports = int(sqrt(self.comboBox_traceSelector.count() - 1))
-            m_ = mn % nports
-            n_ = int((mn - mn % nports) / nports)
-
-        primary = self.comboBox_primarySelector.currentText().lower()
-        s_units = self.comboBox_unitsSelector.currentText()
-        attr = primary + "_" + self.S_VALS[s_units]
-
-        for ntwk in self.ntwk_list:
-            s = getattr(ntwk, attr)
-            for n in range(ntwk.s.shape[2]):
-                for m in range(ntwk.s.shape[1]):
-                    c = next(colors)
-
-                    if trace > 0:
-                        if not n == n_ or not m == m_:
-                            continue
-
-                    label = ntwk.name
-                    if ntwk.s.shape[1] > 1:
-                        label += " - S{:d}{:d}".format(m + 1, n + 1)
-
-                    self.plot.plot(ntwk.f, s[:, m, n], pen=pg.mkPen(c), name=label)
-        self.plot.setLabel("left", s_units)
-
     def plot_smith_list(self):
-        self.reset_plot(True)
+        self.reset_plot(smith=True)
 
-        if self.ntwk_list is None:
+        ntwk_list = self.ntwk
+        if ntwk_list is None:
             return
 
         colors = trace_color_cycle()
@@ -821,7 +866,7 @@ class NetworkPlotWidget(QtWidgets.QWidget):
             m_ = mn % nports
             n_ = int((mn - mn % nports) / nports)
 
-        for ntwk in self.ntwk_list:
+        for ntwk in ntwk_list:
             for n in range(ntwk.s.shape[2]):
                 for m in range(ntwk.s.shape[1]):
                     c = next(colors)
