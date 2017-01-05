@@ -2,7 +2,7 @@ from __future__ import print_function
 import sys
 import os
 
-skrf_qtapps_path = os.path.dirname(os.path.abspath(__file__ + "/.."))
+skrf_qtapps_path = os.path.dirname(os.path.abspath(__file__ + "/../.."))
 sys.path.insert(0, skrf_qtapps_path)
 
 
