@@ -1,18 +1,38 @@
-import sys
+from skrf_qtwidgets import qt, widgets, calibration_widgets
+from qtpy import QtWidgets, QtCore
 
-import sip
-from qtpy import QtWidgets
 
-from skrf_qtwidgets import qt
-# qt.reconcile_with_matplotlib()  # needed for skrf which initialized matplotlib by default
+class TRLWidget(QtWidgets.QWidget):
+    def __init__(self, parent=None):
+        super(TRLWidget, self).__init__(parent)
 
-from skrf_qtwidgets import trlwidget
+        # --- Setup UI --- #
+        self.resize(825, 575)
+        self.setWindowTitle("Multiline TRL Calibration")
+        self.verticalLayout_main = QtWidgets.QVBoxLayout(self)
 
-app = QtWidgets.QApplication(sys.argv)
+        self.vna_controller = widgets.VnaController()
+        self.vna_controller.verticalLayout.setContentsMargins(3, 3, 3, 3)
+        self.verticalLayout_main.addWidget(self.vna_controller)
 
-form = trlwidget.TRLWidget()
-qt.set_popup_exceptions()
-form.show()
+        self.splitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal, self)
+        size_policy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred)
+        size_policy.setVerticalStretch(1)
+        self.splitter.setSizePolicy(size_policy)
 
-sip.setdestroyonexit(False)  # prevent a crash on exit
-sys.exit(app.exec_())
+        self.tabWidget = QtWidgets.QTabWidget(self.splitter)
+        self.tab_calStandards = calibration_widgets.TRLStandardsWidget()
+        self.tab_measurements = calibration_widgets.CalibratedMeasurementsWidget()
+        self.tabWidget.addTab(self.tab_calStandards, "Cal Standards")
+        self.tabWidget.addTab(self.tab_measurements, "Measurements")
+
+        self.ntwk_plot = widgets.NetworkPlotWidget(self.splitter)
+
+        self.verticalLayout_main.addWidget(self.splitter)
+        self.splitter.setStretchFactor(1, 100)
+        # --- END SETUP UI --- #
+
+        self.tab_calStandards.connect_plot(self.ntwk_plot)
+        self.tab_measurements.connect_plot(self.ntwk_plot)
+
+app = qt.single_widget_application(TRLWidget)

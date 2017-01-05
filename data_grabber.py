@@ -32,7 +32,7 @@ class DataGrabber(QtWidgets.QWidget):
         self.measurements_widget_layout.addWidget(self.save_buttons)
 
         self.ntwk_plot = widgets.NetworkPlotWidget(self.splitter)
-        self.ntwk_plot.checkBox_useCorrected.setEnabled(False)
+        self.ntwk_plot.corrected_data_enabled = False
 
         self.verticalLayout_main.addWidget(self.splitter)
         self.splitter.setStretchFactor(1, 100)  # important that this goes at the end

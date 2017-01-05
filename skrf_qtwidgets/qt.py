@@ -186,19 +186,21 @@ def close_splash_screen(widget, splash, start_time):
     splash.finish(widget)
 
 
-def single_widget_application(widget_class):
+def single_widget_application(widget_class, splash_screen=True):
     app = QtWidgets.QApplication(sys.argv)
 
     setup_style()
     set_popup_exceptions()
 
-    splash, start_time = get_splash_screen()
+    if splash_screen:
+        splash, start_time = get_splash_screen()
 
     form = widget_class()
     form.setWindowIcon(get_skrf_icon())
     form.show()
 
-    close_splash_screen(form, splash, start_time)
+    if splash_screen:
+        close_splash_screen(form, splash, start_time)
 
     sip.setdestroyonexit(False)  # prevent a crash on exit
     sys.exit(app.exec_())

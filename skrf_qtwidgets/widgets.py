@@ -221,6 +221,7 @@ class NetworkListItem(QtWidgets.QListWidgetItem):
 
 
 class NetworkListWidget(QtWidgets.QListWidget):
+    MEASUREMENT_PREFIX = "meas"
 
     item_removed = QtCore.Signal()
     item_updated = QtCore.Signal(object)
@@ -295,7 +296,7 @@ class NetworkListWidget(QtWidgets.QListWidget):
         if len(self.selectedItems()) == 1:
             save = QtWidgets.QAction("Save Item", self)
             menu.addAction(save)
-            save.triggered.connect(self.save_single_item)
+            save.triggered.connect(self.save_selected_items)
 
             remove = QtWidgets.QAction("Remove Item", self)
             menu.addAction(remove)
@@ -303,7 +304,7 @@ class NetworkListWidget(QtWidgets.QListWidget):
         elif len(self.selectedItems()) > 1:
             save = QtWidgets.QAction("Save Items", self)
             menu.addAction(save)
-            save.triggered.connect(self.save_single_item)
+            save.triggered.connect(self.save_selected_items)
 
             remove = QtWidgets.QAction("Remove Items", self)
             menu.addAction(remove)
@@ -420,8 +421,7 @@ class NetworkListWidget(QtWidgets.QListWidget):
         item = self.item(self.count() - 1)
         self.set_active_network(item)
 
-    # TODO: implement save selected for multiple selections
-    def save_single_item(self):
+    def save_selected_items(self):
         items = self.selectedItems()
         if len(items) == 1:
             item = items[0]
@@ -448,10 +448,21 @@ class NetworkListWidget(QtWidgets.QListWidget):
     def get_analyzer(self):
         raise AttributeError("Must set get_analyzer method externally")
 
+    def get_all_networks(self, corrected=False):
+        ntwks = []
+        for i in self.count():
+            item = self.item(i)
+            ntwk = item.ntwk if corrected is True else item.ntwk_corrected
+            if isinstance(ntwk, skrf.Network):
+                ntwks.append(ntwk)
+            elif type(ntwk) in (list, tuple):
+                ntwks.extend(ntwk)
+        return ntwks
+
     def measure_ntwk(self):
         with self.get_analyzer() as nwa:
             meas = nwa.measure_twoport_ntwk()
-            meas.name = self.get_unique_name()
+            meas.name = self.MEASUREMENT_PREFIX  # unique name processed in load_network
         self.load_network(meas)
 
     def get_load_button(self, label="Load"):
@@ -466,7 +477,7 @@ class NetworkListWidget(QtWidgets.QListWidget):
 
     def get_save_selected_button(self, label="Save Selected"):
         button = QtWidgets.QPushButton(label)
-        button.clicked.connect(self.save_single_item)
+        button.clicked.connect(self.save_selected_items)
         return button
 
     def get_save_all_button(self, label="Save All"):
