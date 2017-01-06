@@ -161,6 +161,8 @@ def save_NetworkListItem(ntwk_list_item, save_which):
 
     caption = "Save skrf.Network File" if save_which.lower() == "raw" else "Save Calibrated skrf.Network File"
     filename = qt.getSaveFileName_Global(caption, filter=file_filter, start_path=filename)
+    if not filename:
+        return
     ntwk.write_touchstone(filename)
 
 
