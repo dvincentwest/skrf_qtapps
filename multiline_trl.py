@@ -32,7 +32,9 @@ class TRLWidget(QtWidgets.QWidget):
         self.splitter.setStretchFactor(1, 100)
         # --- END SETUP UI --- #
 
+        # necessary rigging of widgets
         self.tab_calStandards.connect_plot(self.ntwk_plot)
         self.tab_measurements.connect_plot(self.ntwk_plot)
+        self.tab_measurements.get_calibration = self.tab_calStandards.get_calibration
 
 app = qt.single_widget_application(TRLWidget)

@@ -71,6 +71,7 @@ class CalibratedMeasurementsWidget(QtWidgets.QWidget):
             item = self.listWidget_measurements.item(i)  # type: widgets.NetworkListItem
             item.ntwk_corrected = calibration.apply_cal(item.ntwk)
             item.ntwk_corrected.name = item.ntwk.name + "-cal"
+        self.listWidget_measurements.set_active_networks()
 
 
 class TRLStandardsWidget(QtWidgets.QWidget):
@@ -200,18 +201,18 @@ class TRLStandardsWidget(QtWidgets.QWidget):
 
         error_messages = []
 
-        thru = self.listWidget_thru.get_named_item(self.THRU_ID)
+        thru = self.listWidget_thru.get_named_item(self.THRU_ID).ntwk
         forward_switch_terms = self.listWidget_thru.get_named_item(self.SWITCH_TERMS_ID_FORWARD)
         reverse_switch_terms = self.listWidget_thru.get_named_item(self.SWITCH_TERMS_ID_REVERSE)
         if isinstance(forward_switch_terms, skrf.Network) and isinstance(reverse_switch_terms, skrf.Network):
-            switch_terms = (forward_switch_terms, reverse_switch_terms)
+            switch_terms = (forward_switch_terms.ntwk, reverse_switch_terms.ntwk)
         else:
             switch_terms = None
         
         if isinstance(thru, skrf.Network):
-            measured.append(self.listWidget_thru.thru.ntwk)
+            measured.append(thru)
         else:
-            error_messages.append("thru ({:s}) must be a valid 2-port network".format(thru))
+            error_messages.append("thru (type {:}) must be a valid 2-port network".format(type(thru)))
 
         reflects = self.listWidget_reflect.get_all_networks()
         if len(reflects) == 0:

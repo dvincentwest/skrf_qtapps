@@ -156,6 +156,8 @@ def save_NetworkListItem(ntwk_list_item, save_which):
         else:
             ntwk = ntwk_list_item.ntwk_corrected
             filename = os.path.join(qt.cfg.last_path, ntwk.name + extension)
+            if not filename:
+                return
 
     caption = "Save skrf.Network File" if save_which.lower() == "raw" else "Save Calibrated skrf.Network File"
     filename = qt.getSaveFileName_Global(caption, filter=file_filter, start_path=filename)
@@ -356,7 +358,7 @@ class NetworkListWidget(QtWidgets.QListWidget):
             ntwk = None
 
         if ntwk_list_corrected:
-            ntwk_corrected = ntwk_list_corrected if len(ntwk_list_corrected ) > 1 else ntwk_list_corrected[0]
+            ntwk_corrected = ntwk_list_corrected if len(ntwk_list_corrected) > 1 else ntwk_list_corrected[0]
         else:
             ntwk_corrected = None
 
@@ -374,10 +376,11 @@ class NetworkListWidget(QtWidgets.QListWidget):
             self.ntwk_plot.set_networks(item.ntwk, item.ntwk_corrected)
 
     def load_named_ntwk(self, ntwk, name, activate=True):
-        item = self.findItems(name, Qt_MatchFlags=QtCore.Qt.MatchExactly)
-        if item is None:
+        item = self.get_named_item(name)
+        if not item:
             item = NetworkListItem()
             self.addItem(item)
+
         item.setFlags(item.flags() | QtCore.Qt.NoItemFlags)
         item.setText(name)
         item.ntwk = ntwk
@@ -387,7 +390,13 @@ class NetworkListWidget(QtWidgets.QListWidget):
             self.set_active_network(item)
 
     def get_named_item(self, name):
-        item = self.findItems(name, Qt_MatchFlags=QtCore.Qt.MatchExactly)
+        items = self.findItems(name, QtCore.Qt.MatchExactly)
+        if len(items) > 1:
+            raise Exception("multiple items matched name: {:s}".format(name))
+        elif len(items) == 0:
+            item = None
+        else:
+            item = items[0]
         return item
 
     def load_network(self, ntwk, activate=True):
@@ -399,6 +408,7 @@ class NetworkListWidget(QtWidgets.QListWidget):
         self.clearSelection()
         self.setCurrentItem(item)
         self.item_text_updated(emit=activate)
+        return item
 
     def load_from_file(self, caption="load touchstone file"):
         ntwk = load_network_file(caption)  # type: skrf.Network
@@ -450,9 +460,9 @@ class NetworkListWidget(QtWidgets.QListWidget):
 
     def get_all_networks(self, corrected=False):
         ntwks = []
-        for i in self.count():
+        for i in range(self.count()):
             item = self.item(i)
-            ntwk = item.ntwk if corrected is True else item.ntwk_corrected
+            ntwk = item.ntwk_corrected if corrected is True else item.ntwk
             if isinstance(ntwk, skrf.Network):
                 ntwks.append(ntwk)
             elif type(ntwk) in (list, tuple):
@@ -575,7 +585,7 @@ class NetworkPlotWidget(QtWidgets.QWidget):
         return self._use_corrected
 
     def set_use_corrected(self, val):
-        if val is True:
+        if val in (1, 2):
             self._use_corrected = True
         else:
             self._use_corrected = False
